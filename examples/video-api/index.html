@@ -490,25 +490,33 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     const layers = [];
     for (const i of ids) (layers[layer.get(i)] ||= []).push(i);
     const col = new Map();
-    layers.forEach((L) => {
-      if (!L) return;
+    for (let k = 0; k < layers.length; k++) {
+      let L = layers[k];
+      if (!L) continue;
       const bary = (i) => { const p = parents.get(i).filter((x) => col.has(x)); return p.length ? p.reduce((s, x) => s + col.get(x), 0) / p.length : 0; };
       L.sort((a, b) => (side.has(a) - side.has(b)) || (happy.has(b) - happy.has(a)) || (bary(a) - bary(b)) || (ids.indexOf(a) - ids.indexOf(b)));
-      // Happy-path node in column 0. A decision's exits stack in the column right of it.
-      // The other steps take the next free columns.
+      // Happy-path step in column 0, the other steps in the next free columns.
       const used = new Set();
       const place = (i) => {
-        if (side.has(i)) { const c = col.get(parents.get(i)[0]) + 1; col.set(i, c); used.add(c); return; }
         let want = happy.has(i) ? 0 : Math.max(1, Math.round(bary(i)));
         while (used.has(want)) want++;
         used.add(want); col.set(i, want);
       };
-      const sideReady = (i) => side.has(i) && col.has(parents.get(i)[0]);
       L.filter((i) => !side.has(i) && happy.has(i)).forEach(place);
-      L.filter(sideReady).forEach(place);
       L.filter((i) => !side.has(i) && !happy.has(i)).forEach(place);
-      L.filter((i) => side.has(i) && !col.has(i)).forEach(place);
-    });
+      // A decision's exits stack in the column right of it, but only when nothing else sits to
+      // its right in this row. Otherwise they move down a row, where they get a free column.
+      const mainCols = L.filter((i) => !side.has(i)).map((i) => col.get(i));
+      const groups = new Map();
+      for (const i of L.filter((x) => side.has(x))) { const p = parents.get(i)[0]; (groups.get(p) || groups.set(p, []).get(p)).push(i); }
+      const moved = new Set();
+      for (const [p, list] of groups) {
+        const pc = col.get(p);
+        if (pc !== undefined && !mainCols.some((c) => c > pc)) list.forEach((i) => col.set(i, pc + 1));
+        else list.forEach((i) => { side.delete(i); layer.set(i, k + 1); (layers[k + 1] ||= []).push(i); moved.add(i); });
+      }
+      if (moved.size) layers[k] = L.filter((i) => !moved.has(i));
+    }
 
     const heights = new Map();
     for (const n of g.nodes) { measurer.innerHTML = nodeHtml(n, g.flow); heights.set(n.id, Math.max(n.type === 'start' ? 44 : 56, measurer.firstChild.offsetHeight)); }
@@ -696,17 +704,19 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
         } else {
           const ex = exitX.get(e), en = entryX.get(e);
           // Each arrow of a fork runs on its own horizontal track inside the gap.
-          const gy1 = a.row + a.rowH + GAP_Y / 2 + (exitRank.get(e) || 0) * 8, gy2 = b.row - GAP_Y / 2;
+          const gy1 = a.row + a.rowH + GAP_Y / 2 + (exitRank.get(e) || 0) * 10, gy2 = b.row - GAP_Y / 2;
+          // Labels sit where the arrow leaves its step, so crossing branches keep their labels apart.
+          const near = (dirX) => ex + dirX * (lw / 2 + 10);
           const clearColumn = a.col === b.col && between(a, b).every((r) => free(r, a.col));
           const adjacent = Math.abs(a.row + a.rowH + GAP_Y - b.row) < 2;
           if (a.col === b.col && Math.abs(ex - en) < 1 && clearColumn) { d = `M${ex},${y1} V${y2}`; lx = ex; ly = y1 + GAP_Y / 2 - 2; }
-          else if (adjacent || clearColumn) { d = `M${ex},${y1} V${gy1} H${en} V${y2}`; lx = (ex + en) / 2; ly = gy1; }
+          else if (adjacent || clearColumn) { d = `M${ex},${y1} V${gy1} H${en} V${y2}`; lx = Math.abs(en - ex) > lw + 20 ? near(en > ex ? 1 : -1) : (ex + en) / 2; ly = gy1; }
           else {
             // Skipping rows: along the column gap, so the arrow never crosses a step.
             // In the first column the empty left side is the clearest channel.
             const side = dir === 0 ? (a.col === 0 ? -1 : 1) : dir;
             const chX = side > 0 ? a.x + a.w + L.gapX / 2 : a.col === 0 ? a.x - 16 : a.x - L.gapX / 2;
-            d = `M${ex},${y1} V${gy1} H${chX} V${gy2} H${en} V${y2}`; lx = (ex + chX) / 2; ly = gy1;
+            d = `M${ex},${y1} V${gy1} H${chX} V${gy2} H${en} V${y2}`; lx = Math.abs(chX - ex) > lw + 20 ? near(chX > ex ? 1 : -1) : (ex + chX) / 2; ly = gy1;
           }
         }
       }
