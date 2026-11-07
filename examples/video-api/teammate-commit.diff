@@ -1,0 +1,157 @@
+diff --git a/src/main/java/com/eeze/video/application/controllers/VideoController.java b/src/main/java/com/eeze/video/application/controllers/VideoController.java
+index 621e8b1..0297330 100644
+--- a/src/main/java/com/eeze/video/application/controllers/VideoController.java
++++ b/src/main/java/com/eeze/video/application/controllers/VideoController.java
+@@ -34,6 +34,7 @@ import com.eeze.video.application.handlers.GetVideoMetadataHandler;
+ import com.eeze.video.application.handlers.ListVideoMetadataHandler;
+ import com.eeze.video.application.handlers.PublishVideoHandler;
+ import com.eeze.video.application.handlers.UpdateVideoMetadataHandler;
++import com.eeze.video.application.handlers.UnpublishVideoHandler;
+ import com.eeze.video.application.handlers.UploadVideoHandler;
+ 
+ import io.swagger.v3.oas.annotations.tags.Tag;
+@@ -78,6 +79,10 @@ public class VideoController {
+     @Autowired
+     private PublishVideoHandler publishVideoHandler;
+ 
++    // Handler for unpublishing videos
++    @Autowired
++    private UnpublishVideoHandler unpublishVideoHandler;
++
+     /**
+      * Uploads a new video.
+      *
+@@ -105,6 +110,19 @@ public class VideoController {
+         return this.publishVideoHandler.execute(id);
+     }
+ 
++    /**
++     * Moves a published video back to draft.
++     *
++     * @param id the UUID of the video to unpublish
++     * @return the response containing the video details
++     * @throws ApplicationException if the video cannot be unpublished
++     */
++    @PatchMapping(path = "videos/{id}/unpublish")
++    public PublishVideoResponse unpublishVideo(
++            @PathVariable("id") UUID id) throws ApplicationException {
++        return this.unpublishVideoHandler.execute(id);
++    }
++
+     /**
+      * Updates the metadata of a video.
+      *
+diff --git a/src/main/java/com/eeze/video/application/handlers/UnpublishVideoHandler.java b/src/main/java/com/eeze/video/application/handlers/UnpublishVideoHandler.java
+new file mode 100644
+index 0000000..62c5840
+--- /dev/null
++++ b/src/main/java/com/eeze/video/application/handlers/UnpublishVideoHandler.java
+@@ -0,0 +1,39 @@
++package com.eeze.video.application.handlers;
++
++import java.util.UUID;
++
++import org.springframework.beans.factory.annotation.Autowired;
++import org.springframework.data.crossstore.ChangeSetPersister.NotFoundException;
++import org.springframework.http.HttpStatus;
++import org.springframework.stereotype.Component;
++
++import com.eeze.video.application.dtos.responses.PublishVideoResponse;
++import com.eeze.video.application.exceptions.ApplicationException;
++import com.eeze.video.domain.entities.video.Video;
++import com.eeze.video.domain.services.VideoService.VideoService;
++
++/**
++ * Handler for moving a published video back to draft.
++ */
++@Component
++public class UnpublishVideoHandler {
++
++    @Autowired
++    private VideoService videoService;
++
++    public PublishVideoResponse execute(UUID id) throws ApplicationException {
++        try {
++            Video video = this.videoService.unpublish(id);
++            return new PublishVideoResponse(video);
++        } catch (Exception e) {
++            if (e instanceof NotFoundException) {
++                throw new ApplicationException(HttpStatus.NOT_FOUND, "Video not found", e);
++            }
++            if (e instanceof IllegalStateException) {
++                throw new ApplicationException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
++            }
++            throw new ApplicationException(
++                    HttpStatus.INTERNAL_SERVER_ERROR, "An error occurred while unpublishing the video", e);
++        }
++    }
++}
+diff --git a/src/main/java/com/eeze/video/domain/entities/video/Metadata.java b/src/main/java/com/eeze/video/domain/entities/video/Metadata.java
+index 8f3c9b0..a31bca0 100644
+--- a/src/main/java/com/eeze/video/domain/entities/video/Metadata.java
++++ b/src/main/java/com/eeze/video/domain/entities/video/Metadata.java
+@@ -94,8 +94,7 @@ public class Metadata {
+                 && this.director != null && !this.director.isEmpty()
+                 && this.cast != null && !this.cast.isEmpty()
+                 && this.yearOfRelease != null
+-                && this.genre != null && !this.genre.isEmpty()
+-                && this.runningTime != null && !this.runningTime.isEmpty();
++                && this.genre != null && !this.genre.isEmpty();
+     }
+ 
+ }
+\ No newline at end of file
+diff --git a/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java b/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java
+index 503b440..3ad9e58 100644
+--- a/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java
++++ b/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java
+@@ -213,4 +213,21 @@ public class VideoService {
+         // Return the updated video entity
+         return video;
+     }
++
++    /**
++     * Moves a published video back to DRAFT so viewers can no longer see it.
++     *
++     * @param id the UUID of the video to unpublish
++     * @return the updated Video entity
++     * @throws NotFoundException     if the video does not exist
++     * @throws IllegalStateException if the video is not published
++     */
++    public Video unpublish(UUID id) throws NotFoundException, IllegalStateException {
++        Video video = this.findOne(id);
++        if (video.getStatus() != Status.PUBLISHED) {
++            throw new IllegalStateException("Only published videos can be unpublished");
++        }
++        video.setStatus(Status.DRAFT);
++        return this.videoRepository.save(video);
++    }
+ }
+diff --git a/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java b/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java
+index 0fcb76f..f8e2e0b 100644
+--- a/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java
++++ b/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java
+@@ -227,4 +227,23 @@ public class VideoServiceTest {
+         verify(videoRepository).findValid(testId);
+         verify(videoRepository, never()).save(any(Video.class));
+     }
++
++    @Test
++    public void testUnpublishMovesPublishedVideoBackToDraft() throws NotFoundException {
++        testVideo.setStatus(Status.PUBLISHED);
++        when(videoRepository.findValid(testId)).thenReturn(Optional.of(testVideo));
++        when(videoRepository.save(any(Video.class))).thenAnswer(inv -> inv.getArgument(0));
++
++        Video result = videoService.unpublish(testId);
++
++        assertEquals(Status.DRAFT, result.getStatus());
++    }
++
++    @Test
++    public void testUnpublishRejectsDraft() throws NotFoundException {
++        when(videoRepository.findValid(testId)).thenReturn(Optional.of(testVideo));
++
++        assertThrows(IllegalStateException.class, () -> videoService.unpublish(testId));
++        verify(videoRepository, never()).save(any(Video.class));
++    }
+ }

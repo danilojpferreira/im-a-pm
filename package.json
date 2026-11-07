@@ -1,0 +1,16 @@
+{
+  "name": "im-a-pm",
+  "version": "0.3.0",
+  "description": "Agent skill that maps a codebase as business flows for product managers.",
+  "type": "module",
+  "bin": { "im-a-pm": "skills/im-a-pm/scripts/im-a-pm.mjs" },
+  "files": ["skills/", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/im-a-pm.test.mjs",
+    "check": "node skills/im-a-pm/scripts/im-a-pm.mjs validate examples/video-api/flows.json"
+  },
+  "engines": { "node": ">=18" },
+  "keywords": ["agent-skills", "claude-code", "codex", "copilot", "cursor", "gemini-cli", "product-management", "business-rules"],
+  "repository": { "type": "git", "url": "https://github.com/danilojpferreira/im-a-pm.git" },
+  "license": "MIT"
+}

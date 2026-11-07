@@ -1,0 +1,786 @@
+<title>Business map</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Schibsted+Grotesk:wght@500;700&display=swap">
+<style>
+/* Layout: a three-pane workbench (flow index · canvas · inspector) that stacks to one column on phones. */
+:root {
+  --bg: #f3f5f2;
+  --surface: #ffffff;
+  --ink: #1b2628;
+  --muted: #5b686a;
+  --line: #d5dbd6;
+  --accent: #1f6a72;
+  --accent-soft: #dcecec;
+
+  --decision-bg: #fbf0d6; --decision-line: #b98a22;
+  --action-bg: #eef1f8;   --action-line: #6a7aa6;
+  --data-bg: #e3f0f6;     --data-line: #3c84a6;
+  --external-bg: #f1e9f6; --external-line: #8a64a8;
+  --start-bg: #1b2628;    --start-ink: #f3f5f2;
+  --ok-bg: #e2f2e4;       --ok-line: #3a8a4c;
+  --rej-bg: #fbe6df;      --rej-line: #b9573a;
+  --err-bg: #eceeee;      --err-line: #7d8788;
+
+  --add: #2f8a47; --add-bg: #dcf1e1;
+  --del: #c0392b; --del-bg: #fbe1dd;
+  --chg: #b7791f; --chg-bg: #fbefd8;
+
+  --font-display: "Schibsted Grotesk", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --step--1: 0.78rem; --step-0: 0.875rem; --step-1: 1rem; --step-2: 1.25rem; --step-3: 1.6rem;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111718; --surface: #182022; --ink: #e2e8e5; --muted: #95a3a3; --line: #2c3739;
+  --accent: #6cc3c9; --accent-soft: #1c3537;
+  --decision-bg: #3a3018; --decision-line: #d9ad4b;
+  --action-bg: #22283a;   --action-line: #8d9cd0;
+  --data-bg: #17303b;     --data-line: #63aed1;
+  --external-bg: #2d2238; --external-line: #b48ed2;
+  --start-bg: #e2e8e5;    --start-ink: #111718;
+  --ok-bg: #183222;       --ok-line: #63bb78;
+  --rej-bg: #3b2119;      --rej-line: #e08566;
+  --err-bg: #232b2c;      --err-line: #9aa6a7;
+  --add: #63c27c; --add-bg: #173323; --del: #ef7d70; --del-bg: #3d1d1a; --chg: #e2ac54; --chg-bg: #3a2e16;
+  color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #111718; --surface: #182022; --ink: #e2e8e5; --muted: #95a3a3; --line: #2c3739;
+  --accent: #6cc3c9; --accent-soft: #1c3537;
+  --decision-bg: #3a3018; --decision-line: #d9ad4b;
+  --action-bg: #22283a;   --action-line: #8d9cd0;
+  --data-bg: #17303b;     --data-line: #63aed1;
+  --external-bg: #2d2238; --external-line: #b48ed2;
+  --start-bg: #e2e8e5;    --start-ink: #111718;
+  --ok-bg: #183222;       --ok-line: #63bb78;
+  --rej-bg: #3b2119;      --rej-line: #e08566;
+  --err-bg: #232b2c;      --err-line: #9aa6a7;
+  --add: #63c27c; --add-bg: #173323; --del: #ef7d70; --del-bg: #3d1d1a; --chg: #e2ac54; --chg-bg: #3a2e16;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--ink);
+  font-family: var(--font-body); font-size: var(--step-0); line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 14px 24px;
+}
+h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
+button, input, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-mono); font-size: var(--step--1); }
+.muted { color: var(--muted); }
+.eyebrow { font-size: var(--step--1); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+
+/* top bar */
+.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.brand h1 { font-size: var(--step-3); font-weight: 700; letter-spacing: -.01em; }
+.brand p { margin: 0; color: var(--muted); max-width: 70ch; }
+.stats { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.stat { display: flex; flex-direction: column; padding: 6px 12px; border-left: 1px solid var(--line); }
+.stat b { font-family: var(--font-display); font-size: var(--step-2); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stat span { font-size: var(--step--1); color: var(--muted); }
+
+.compare { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 12px; background: var(--chg-bg); border: 1px solid var(--chg); border-radius: 8px; }
+.compare[hidden] { display: none; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; }
+.switch input { width: 16px; height: 16px; accent-color: var(--accent); }
+
+/* workbench */
+.bench { display: grid; grid-template-columns: 260px minmax(0, 1fr) 320px; gap: 16px; margin-top: 16px; height: calc(100% - 110px); min-height: 560px; }
+.pane { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
+
+/* index */
+.index { overflow: hidden; }
+.index .search { padding: 10px; border-bottom: 1px solid var(--line); }
+.index input[type=search] { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.flowlist { overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
+.domain { padding: 10px 8px 4px; }
+.flowbtn { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 8px; width: 100%; text-align: left; padding: 8px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
+.flowbtn:hover { background: var(--bg); }
+.flowbtn[aria-current="true"] { background: var(--accent-soft); }
+.flowbtn .t { font-weight: 600; min-width: 0; }
+.flowbtn .s { grid-column: 1 / -1; font-family: var(--font-mono); font-size: 0.72rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-weight: 600; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; white-space: nowrap; line-height: 1.5; }
+.pill.find { color: var(--rej-line); }
+.pill.added { color: var(--add); background: var(--add-bg); }
+.pill.removed { color: var(--del); background: var(--del-bg); }
+.pill.changed { color: var(--chg); background: var(--chg-bg); }
+.pill.high { color: var(--ok-line); }
+.pill.medium { color: var(--chg); }
+.pill.low { color: var(--del); }
+
+/* flow pane */
+.flow { overflow: hidden; }
+.flowhead { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.flowhead h2 { font-size: var(--step-2); }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; color: var(--muted); }
+.trigger { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+.flowhead p { margin: 0; max-width: 75ch; }
+.paths { display: flex; flex-wrap: wrap; gap: 6px; }
+.pathbtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); }
+.pathbtn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.pathbtn.success .dot { background: var(--ok-line); }
+.pathbtn.rejected .dot { background: var(--rej-line); }
+.pathbtn.error .dot { background: var(--err-line); }
+.pathbtn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; }
+.notes { display: flex; flex-direction: column; gap: 6px; max-height: 132px; overflow-y: auto; }
+.note { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 8px; align-items: baseline; padding: 6px 10px; border-radius: 6px; background: var(--bg); border: 1px solid var(--line); cursor: pointer; text-align: left; }
+.note:hover { border-color: var(--rej-line); }
+.note .k { font-size: 0.68rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--rej-line); }
+.note.change .k { color: var(--chg); }
+details.collapse > summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: var(--step--1); list-style-position: inside; }
+
+.canvaswrap { position: relative; flex: 1; min-height: 360px; overflow: hidden; background:
+  radial-gradient(circle, var(--line) 1px, transparent 1.2px) 0 0 / 18px 18px, var(--surface); touch-action: none; }
+.canvaswrap svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
+.canvaswrap svg.dragging { cursor: grabbing; }
+.zoom { position: absolute; right: 10px; bottom: 10px; display: flex; gap: 4px; }
+.zoom button { width: 32px; height: 32px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; font-weight: 600; }
+.legend { position: absolute; left: 10px; bottom: 10px; display: flex; flex-wrap: wrap; gap: 4px 10px; padding: 6px 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; font-size: 0.7rem; color: var(--muted); max-width: calc(100% - 140px); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 4px; vertical-align: -1px; border: 1.5px solid; }
+
+/* nodes (HTML inside foreignObject) */
+.node { width: 100%; height: 100%; border: 1.5px solid; border-radius: 8px; padding: 8px 10px; display: flex; flex-direction: column; gap: 3px; cursor: pointer; font-family: var(--font-body); font-size: 13px; line-height: 1.35; color: var(--ink); overflow: hidden; }
+.node .ty { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; opacity: .75; display: flex; justify-content: space-between; gap: 6px; }
+.node .lb { font-weight: 500; }
+.node.start { background: var(--start-bg); color: var(--start-ink); border-color: var(--start-bg); border-radius: 999px; text-align: center; justify-content: center; }
+.node.decision { background: var(--decision-bg); border-color: var(--decision-line); }
+.node.action { background: var(--action-bg); border-color: var(--action-line); }
+.node.data { background: var(--data-bg); border-color: var(--data-line); border-radius: 8px 8px 16px 16px; }
+.node.external { background: var(--external-bg); border-color: var(--external-line); border-style: dashed; }
+.node.outcome.success { background: var(--ok-bg); border-color: var(--ok-line); }
+.node.outcome.rejected { background: var(--rej-bg); border-color: var(--rej-line); }
+.node.outcome.error { background: var(--err-bg); border-color: var(--err-line); }
+.node.sel { box-shadow: 0 0 0 3px var(--accent); }
+.node.hl { box-shadow: 0 0 0 4px var(--accent), 0 0 0 9px var(--accent-soft); }
+.node .handoff { font-size: 11px; font-weight: 600; color: var(--external-line); }
+.links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.linkbtn { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--external-line); color: var(--ink); background: var(--external-bg); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
+.linkbtn:hover { border-style: solid; }
+.askbox { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+.askform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.askform input { flex: 1 1 280px; min-width: 0; padding: 9px 12px; border: 1.5px solid var(--accent); border-radius: 8px; background: var(--surface); }
+.askform .hint { flex-basis: 100%; font-size: var(--step--1); color: var(--muted); }
+.answer { background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: 0 10px 10px 0; padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.answer .text { white-space: pre-wrap; max-width: 90ch; line-height: 1.6; }
+.answer .cite { display: inline; border: 0; background: var(--accent-soft); color: var(--ink); border-radius: 4px; padding: 0 5px; cursor: pointer; font: inherit; font-weight: 600; }
+.answer .cite:hover { text-decoration: underline; }
+.answer .foot { display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center; font-size: var(--step--1); color: var(--muted); }
+.node.d-added { border: 3px solid var(--add); }
+.node.d-changed { border: 3px solid var(--chg); }
+.node.d-removed { opacity: .75; border: 3px dashed var(--del); }
+.node.d-removed .lb { text-decoration: line-through; }
+.dtag { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 0 5px; border-radius: 3px; color: var(--surface); }
+.dtag.stale { background: var(--rej-line); }
+.dtag.added { background: var(--add); } .dtag.changed { background: var(--chg); } .dtag.removed { background: var(--del); }
+.node .flagdot { color: var(--rej-line); }
+g.dim { opacity: .18; }
+.edge { fill: none; stroke: var(--muted); stroke-width: 1.5; }
+.edge.happy { stroke: var(--accent); stroke-width: 2.5; }
+.edge.d-added { stroke: var(--add); stroke-width: 2.5; }
+.edge.d-removed { stroke: var(--del); stroke-dasharray: 6 5; }
+.elabel { pointer-events: none; }
+.elabel rect { fill: var(--surface); stroke: var(--line); }
+.elabel text { fill: var(--ink); font-family: var(--font-body); font-size: 11px; font-weight: 600; }
+.arrow { fill: var(--muted); }
+.arrow-happy { fill: var(--accent); }
+.arrow-add { fill: var(--add); }
+.arrow-del { fill: var(--del); }
+
+/* inspector */
+.inspector { overflow-y: auto; padding: 16px; gap: 14px; }
+.inspector h3 { font-size: var(--step-1); }
+.empty { color: var(--muted); display: flex; flex-direction: column; gap: 10px; }
+.rule { margin: 0; padding: 10px 12px; background: var(--bg); border-left: 3px solid var(--decision-line); border-radius: 0 6px 6px 0; }
+.kv { display: grid; grid-template-columns: auto minmax(0,1fr); gap: 4px 12px; margin: 0; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.before { background: var(--del-bg); border-radius: 6px; padding: 8px 10px; }
+.after { background: var(--add-bg); border-radius: 6px; padding: 8px 10px; }
+.before b, .after b { display: block; font-size: 0.68rem; letter-spacing: .06em; text-transform: uppercase; }
+.actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.btn { border: 1px solid var(--line); background: var(--surface); padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: var(--step--1); }
+.btn:hover { border-color: var(--accent); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.composer { display: flex; flex-direction: column; gap: 8px; }
+.composer textarea { width: 100%; min-height: 84px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); resize: vertical; }
+.cmd { font-family: var(--font-mono); font-size: 0.72rem; padding: 8px 10px; background: var(--bg); border: 1px dashed var(--line); border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
+.toast { font-size: var(--step--1); color: var(--accent); font-weight: 600; min-height: 1.2em; }
+.anchors { display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.anchors code { font-family: var(--font-mono); font-size: 0.72rem; overflow-wrap: anywhere; }
+
+.stalebar { margin-top: 12px; padding: 8px 12px; border: 1px solid var(--rej-line); background: var(--rej-bg); border-radius: 8px; }
+.stalebox { background: var(--rej-bg); border-radius: 6px; padding: 8px 10px; }
+.stalebox b { display: block; font-size: 0.68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--rej-line); }
+.calls { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; counter-reset: call; }
+.calls li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr); gap: 0 4px; font-size: 0.75rem; counter-increment: call; }
+.calls li::before { content: counter(call) "."; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
+.calls .fn { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.calls .where { grid-column: 2; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); overflow-wrap: anywhere; }
+.calls .kind { font-size: 0.62rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--external-line); margin-left: 4px; }
+.calls .grp { grid-column: 1 / -1; font-size: 0.72rem; font-weight: 600; color: var(--ink); margin-top: 6px; counter-increment: none; }
+.calls .grp::before { content: none; }
+.missing { max-width: 60ch; margin: 10vh auto; display: flex; flex-direction: column; gap: 10px; }
+
+@media (max-width: 1100px) {
+  .bench { grid-template-columns: 230px minmax(0, 1fr); height: auto; }
+  .inspector { grid-column: 1 / -1; }
+  .flow { min-height: 640px; }
+}
+@media (max-width: 720px) {
+  .bench { grid-template-columns: minmax(0, 1fr); }
+  .index { max-height: 260px; }
+  .flow { min-height: 600px; }
+  .legend { display: none; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  g.n, g.e { transition: opacity .15s ease; }
+}
+</style>
+
+<header class="top" id="top"></header>
+<div class="compare" id="compare" hidden></div>
+<div class="stalebar" id="stalebar" hidden></div>
+<section class="askbox" id="askbox" hidden aria-label="Ask about the business logic">
+  <form class="askform" id="askform">
+    <input id="askq" type="text" autocomplete="off" placeholder="Ask about any business rule, e.g. when is a refund refused?" aria-label="Question">
+    <button type="submit" class="btn primary" id="askgo">Ask</button>
+    <button type="button" class="btn" id="askstop" hidden>Stop</button>
+    <span class="hint" id="askhint"></span>
+  </form>
+  <div class="answer" id="answer" hidden></div>
+</section>
+<main class="bench" id="bench">
+  <nav class="pane index" aria-label="Flows">
+    <div class="search"><input type="search" id="q" placeholder="Search flows and rules" aria-label="Search flows and rules"></div>
+    <div class="flowlist" id="flowlist"></div>
+  </nav>
+  <section class="pane flow" aria-label="Flow">
+    <div class="flowhead" id="flowhead"></div>
+    <div class="canvaswrap" id="canvaswrap">
+      <svg id="canvas" role="img" aria-label="Flowchart"></svg>
+      <div class="legend" aria-hidden="true">
+        <span><i style="background:var(--decision-bg);border-color:var(--decision-line)"></i>Decision</span>
+        <span><i style="background:var(--action-bg);border-color:var(--action-line)"></i>Action</span>
+        <span><i style="background:var(--data-bg);border-color:var(--data-line)"></i>Data</span>
+        <span><i style="background:var(--external-bg);border-color:var(--external-line)"></i>Outside system</span>
+        <span><i style="background:var(--ok-bg);border-color:var(--ok-line)"></i>Success</span>
+        <span><i style="background:var(--rej-bg);border-color:var(--rej-line)"></i>Rejected</span>
+      </div>
+      <div class="zoom">
+        <button type="button" id="zin" aria-label="Zoom in">+</button>
+        <button type="button" id="zout" aria-label="Zoom out">−</button>
+        <button type="button" id="zfit" aria-label="Fit to screen">⤢</button>
+      </div>
+    </div>
+  </section>
+  <aside class="pane inspector" id="inspector" aria-label="Details"></aside>
+</main>
+
+<script>
+const PAYLOAD = /*__IM_A_PM_DATA__*/null;
+(function () {
+  'use strict';
+  if (!PAYLOAD) {
+    document.getElementById('bench').innerHTML = '<div class="missing"><h2>No map loaded</h2><p>This is the viewer template. Run <code class="mono">node scripts/im-a-pm.mjs render</code> to build <code class="mono">.im-a-pm/index.html</code> from <code class="mono">.im-a-pm/flows.json</code>.</p></div>';
+    return;
+  }
+  const { head, base, diff, served } = PAYLOAD;
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const TYPE_NAMES = { start: 'Trigger', decision: 'Decision', action: 'Action', data: 'Data', external: 'Outside system', outcome: 'Outcome' };
+  const NODE_W = 236, GAP_X = 56, GAP_Y = 54, PAD = 40;
+
+  const state = { flow: null, node: null, path: 'all', showChanges: !!diff, composer: null, q: '', hl: new Set() };
+  const consumers = new Map(), emitters = new Map();
+  for (const f of head.flows) {
+    if (f.trigger?.channel) (consumers.get(f.trigger.channel) || consumers.set(f.trigger.channel, []).get(f.trigger.channel)).push(f);
+    for (const n of f.nodes) for (const e of n.emits || []) (emitters.get(e.channel) || emitters.set(e.channel, []).get(e.channel)).push({ flow: f, node: n });
+  }
+  const nextFlows = (n) => (n.emits || []).flatMap((e) => consumers.get(e.channel) || []);
+
+  document.title = `${head.app.name} business map`;
+
+  // ------------------------------------------------------------ data helpers
+  const headFlows = new Map(head.flows.map((f) => [f.id, f]));
+  const baseFlows = new Map((base?.flows || []).map((f) => [f.id, f]));
+  const allFlowIds = [...headFlows.keys(), ...(diff ? diff.removed : [])];
+
+  function flowStatus(id) {
+    if (!diff) return null;
+    if (diff.added.includes(id)) return 'added';
+    if (diff.removed.includes(id)) return 'removed';
+    if (diff.changed[id]) return 'changed';
+    return null;
+  }
+  const flowOf = (id) => headFlows.get(id) || baseFlows.get(id);
+  const edgeKey = (e) => `${e.from}→${e.to}${e.label ? ` [${e.label}]` : ''}`;
+
+  // Union of head and base when showing changes.
+  function graph(id) {
+    const status = flowStatus(id);
+    const hf = headFlows.get(id), bf = baseFlows.get(id);
+    if (!state.showChanges || !diff || (!hf && !bf)) {
+      const f = hf || bf;
+      return { flow: f, nodes: f.nodes.map((n) => ({ ...n, _d: null })), edges: f.edges.map((e) => ({ ...e, _d: null })) };
+    }
+    if (status === 'removed') return { flow: bf, nodes: bf.nodes.map((n) => ({ ...n, _d: 'removed' })), edges: bf.edges.map((e) => ({ ...e, _d: 'removed' })) };
+    if (status === 'added') return { flow: hf, nodes: hf.nodes.map((n) => ({ ...n, _d: 'added' })), edges: hf.edges.map((e) => ({ ...e, _d: 'added' })) };
+    const d = diff.changed[id];
+    if (!d) return { flow: hf, nodes: hf.nodes.map((n) => ({ ...n, _d: null })), edges: hf.edges.map((e) => ({ ...e, _d: null })) };
+    const changed = new Map(d.nodes.changed.map((c) => [c.id, c.fields]));
+    const nodes = hf.nodes.map((n) => ({ ...n, _d: d.nodes.added.includes(n.id) ? 'added' : changed.has(n.id) ? 'changed' : null, _before: changed.get(n.id) }));
+    for (const rid of d.nodes.removed) nodes.push({ ...bf.nodes.find((n) => n.id === rid), _d: 'removed' });
+    const edges = hf.edges.map((e) => ({ ...e, _d: d.edges.added.includes(edgeKey(e)) ? 'added' : null }));
+    for (const e of bf.edges) if (d.edges.removed.includes(edgeKey(e))) edges.push({ ...e, _d: 'removed' });
+    return { flow: hf, nodes, edges };
+  }
+
+  function onPath(g, outcomeId) {
+    const out = new Map(g.nodes.map((n) => [n.id, []]));
+    const inn = new Map(g.nodes.map((n) => [n.id, []]));
+    for (const e of g.edges) { if (e._d === 'removed') continue; out.get(e.from)?.push(e.to); inn.get(e.to)?.push(e.from); }
+    const walk = (startId, adj) => { const seen = new Set([startId]); const st = [startId]; while (st.length) for (const x of adj.get(st.pop()) || []) if (!seen.has(x)) { seen.add(x); st.push(x); } return seen; };
+    const fwd = walk('start', out), back = walk(outcomeId, inn);
+    return new Set([...fwd].filter((x) => back.has(x)));
+  }
+
+  // ------------------------------------------------------------ layout
+  const measurer = document.createElement('div');
+  measurer.style.cssText = `position:absolute;left:-9999px;top:0;width:${NODE_W}px;visibility:hidden`;
+  document.body.appendChild(measurer);
+
+  function nodeHtml(n, flow) {
+    const findings = (flow.findings || []).filter((f) => (f.nodes || []).includes(n.id)).length;
+    const cls = ['node', n.type, n.type === 'outcome' ? n.result : '', n._d ? `d-${n._d}` : '', state.node === n.id ? 'sel' : '', state.hl.has(n.id) ? 'hl' : ''].join(' ');
+    const sub = n.type === 'outcome' && n.response ? `<span class="mono" style="font-size:11px;opacity:.8">${esc(n.response)}</span>` : n.type === 'external' && n.system ? `<span style="font-size:11px;opacity:.8">${esc(n.system)}</span>` : '';
+    const ty = n.type === 'start' ? '' : `<div class="ty"><span>${TYPE_NAMES[n.type]}${n.type === 'data' && n.data ? ` · ${esc(n.data.op)}` : ''}</span>${n._d ? `<span class="dtag ${n._d}">${n._d === 'added' ? 'new' : n._d}</span>` : n.stale ? '<span class="dtag stale">re-check</span>' : findings ? '<span class="flagdot">● finding</span>' : ''}</div>`;
+    const nx = nextFlows(n);
+    const ho = nx.length ? `<div class="handoff">↳ continues in ${nx.map((f) => esc(f.title)).join(', ')}</div>` : (n.emits || []).length ? `<div class="handoff">↳ ${n.emits.map((e) => esc(e.channel)).join(', ')}</div>` : '';
+    return `<div class="${cls}" xmlns="http://www.w3.org/1999/xhtml">${ty}<div class="lb">${esc(n.label)}</div>${sub}${ho}</div>`;
+  }
+
+  function layout(g) {
+    const ids = g.nodes.map((n) => n.id);
+    const out = new Map(ids.map((i) => [i, []])), indeg = new Map(ids.map((i) => [i, 0])), parents = new Map(ids.map((i) => [i, []]));
+    for (const e of g.edges) { if (!out.has(e.from) || !out.has(e.to)) continue; out.get(e.from).push(e.to); indeg.set(e.to, indeg.get(e.to) + 1); parents.get(e.to).push(e.from); }
+    const layer = new Map(); const q = ids.filter((i) => indeg.get(i) === 0); q.forEach((i) => layer.set(i, 0));
+    const deg = new Map(indeg); const order = [];
+    while (q.length) { const x = q.shift(); order.push(x); for (const y of out.get(x)) { layer.set(y, Math.max(layer.get(y) ?? 0, layer.get(x) + 1)); deg.set(y, deg.get(y) - 1); if (deg.get(y) === 0) q.push(y); } }
+    for (const i of ids) if (!layer.has(i)) layer.set(i, 0);
+
+    const happy = onPath(g, g.flow.happyPath);
+    const byId = new Map(g.nodes.map((n) => [n.id, n]));
+    // A dead-end outcome off a single decision is a side exit: same row as the decision, to its right.
+    const side = new Set(ids.filter((i) => byId.get(i).type === 'outcome' && !happy.has(i) && parents.get(i).length === 1));
+    for (const i of side) layer.set(i, layer.get(parents.get(i)[0]));
+    const layers = [];
+    for (const i of ids) (layers[layer.get(i)] ||= []).push(i);
+    const col = new Map();
+    layers.forEach((L) => {
+      if (!L) return;
+      const bary = (i) => { const p = parents.get(i).filter((x) => col.has(x)); return p.length ? p.reduce((s, x) => s + col.get(x), 0) / p.length : 0; };
+      L.sort((a, b) => (side.has(a) - side.has(b)) || (happy.has(b) - happy.has(a)) || (bary(a) - bary(b)) || (ids.indexOf(a) - ids.indexOf(b)));
+      // happy-path node sits in column 0, the rest take the next free columns to its right
+      const used = new Set();
+      for (const i of L) {
+        let want = happy.has(i) ? 0 : side.has(i) ? col.get(parents.get(i)[0]) + 1 : Math.max(1, Math.round(bary(i)));
+        while (used.has(want)) want++;
+        used.add(want); col.set(i, want);
+      }
+    });
+
+    const heights = new Map();
+    for (const n of g.nodes) { measurer.innerHTML = nodeHtml(n, g.flow); heights.set(n.id, Math.max(n.type === 'start' ? 44 : 56, measurer.firstChild.offsetHeight)); }
+    const pos = new Map(); let y = PAD, maxCol = 0;
+    layers.forEach((L) => {
+      if (!L) return;
+      const h = Math.max(...L.map((i) => heights.get(i)));
+      for (const i of L) { pos.set(i, { x: PAD + col.get(i) * (NODE_W + GAP_X), y: y + (h - heights.get(i)) / 2, w: NODE_W, h: heights.get(i), row: y }); maxCol = Math.max(maxCol, col.get(i)); }
+      y += h + GAP_Y;
+    });
+    return { pos, width: PAD * 2 + (maxCol + 1) * NODE_W + maxCol * GAP_X, height: y - GAP_Y + PAD + 40, happy };
+  }
+
+  // ------------------------------------------------------------ canvas
+  const svg = $('canvas');
+  let view = { x: 0, y: 0, w: 800, h: 600 }, content = { width: 800, height: 600 };
+  const setView = () => svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
+  // Fit the width at a readable size (never above 100%), anchored to the top; taller flows pan.
+  function fit() {
+    const r = svg.getBoundingClientRect(); const cw = r.width || 800, ch = r.height || 600;
+    const scale = Math.min(1, cw / content.width);
+    const w = cw / scale, h = ch / scale;
+    view = { x: Math.min(0, (content.width - w) / 2), y: 0, w, h }; setView();
+  }
+  function zoom(f, cx, cy) {
+    const nw = Math.min(Math.max(view.w * f, 200), 8000), k = nw / view.w;
+    cx ??= view.x + view.w / 2; cy ??= view.y + view.h / 2;
+    view = { x: cx - (cx - view.x) * k, y: cy - (cy - view.y) * k, w: nw, h: view.h * k }; setView();
+  }
+  $('zin').onclick = () => zoom(0.8); $('zout').onclick = () => zoom(1.25); $('zfit').onclick = fit;
+  svg.addEventListener('wheel', (ev) => {
+    ev.preventDefault();
+    const r = svg.getBoundingClientRect();
+    if (!(ev.ctrlKey || ev.metaKey)) { view.x += ev.deltaX * view.w / r.width; view.y += ev.deltaY * view.h / r.height; setView(); return; }
+    zoom(ev.deltaY > 0 ? 1.1 : 0.9, view.x + (ev.clientX - r.left) / r.width * view.w, view.y + (ev.clientY - r.top) / r.height * view.h);
+  }, { passive: false });
+  let drag = null;
+  svg.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.node')) return; drag = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y }; svg.classList.add('dragging'); svg.setPointerCapture(ev.pointerId); });
+  svg.addEventListener('pointermove', (ev) => { if (!drag) return; const r = svg.getBoundingClientRect(); view.x = drag.vx - (ev.clientX - drag.x) * view.w / r.width; view.y = drag.vy - (ev.clientY - drag.y) * view.h / r.height; setView(); });
+  const endDrag = () => { drag = null; svg.classList.remove('dragging'); };
+  svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
+
+  function drawCanvas(refit) {
+    const g = graph(state.flow); const L = layout(g);
+    content = { width: L.width, height: L.height };
+    const hl = state.path === 'all' ? null : onPath(g, state.path);
+    const parts = [`<defs>
+      <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-happy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-happy" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-add" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-add" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-del" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-del" d="M0,0 L10,5 L0,10 z"/></marker></defs>`];
+    const labels = [];
+    for (const e of g.edges) {
+      const a = L.pos.get(e.from), b = L.pos.get(e.to); if (!a || !b) continue;
+      const happyEdge = L.happy.has(e.from) && L.happy.has(e.to) && e._d !== 'removed';
+      const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y - 2;
+      const sameRow = a.row === b.row;
+      let d, lx, ly;
+      if (sameRow) {
+        const sy = a.y + a.h / 2, ty = b.y + b.h / 2, sx = a.x + a.w, tx = b.x - 2;
+        d = Math.abs(sy - ty) < 1 ? `M${sx},${sy} L${tx},${ty}` : `M${sx},${sy} C${(sx + tx) / 2},${sy} ${(sx + tx) / 2},${ty} ${tx},${ty}`;
+        lx = (sx + tx) / 2; ly = (sy + ty) / 2;
+      } else if (Math.abs(x1 - x2) < 1) { d = `M${x1},${y1} L${x2},${y2}`; lx = x1; ly = y1 + GAP_Y / 2 - 2; }
+      else { const sx = x1 < x2 ? a.x + a.w : a.x, sy = a.y + a.h / 2; d = `M${sx},${sy} C${x2},${sy} ${x2},${sy} ${x2},${y2}`; lx = (sx + x2) / 2; ly = sy; }
+      const cls = ['edge', happyEdge && !e._d ? 'happy' : '', e._d ? `d-${e._d}` : ''].join(' ');
+      const mk = e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : happyEdge ? 'ah-happy' : 'ah';
+      const dim = hl && !(hl.has(e.from) && hl.has(e.to)) ? ' dim' : '';
+      parts.push(`<g class="e${dim}"><path class="${cls}" d="${d}" marker-end="url(#${mk})"/></g>`);
+      if (e.label) {
+        const w = Math.max(28, e.label.length * 6.6 + 14);
+        labels.push(`<g class="elabel${dim}" transform="translate(${lx - w / 2},${ly - 10})"><rect width="${w}" height="20" rx="10"/><text x="${w / 2}" y="14" text-anchor="middle">${esc(e.label)}</text></g>`);
+      }
+    }
+    for (const n of g.nodes) {
+      const p = L.pos.get(n.id); const dim = hl && !hl.has(n.id) ? ' dim' : '';
+      parts.push(`<g class="n${dim}" data-id="${esc(n.id)}"><foreignObject x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}">${nodeHtml(n, g.flow)}</foreignObject></g>`);
+    }
+    svg.innerHTML = parts.join('') + labels.join('');
+    svg.querySelectorAll('g.n').forEach((el) => el.addEventListener('click', () => { state.node = el.dataset.id; state.composer = null; drawCanvas(false); drawInspector(); }));
+    if (refit) fit(); else setView();
+  }
+
+  // ------------------------------------------------------------ header & index
+  function drawTop() {
+    const decisions = head.flows.reduce((s, f) => s + f.nodes.filter((n) => n.type === 'decision').length, 0);
+    const findings = head.flows.reduce((s, f) => s + (f.findings || []).length, 0);
+    $('top').innerHTML = `<div class="brand"><span class="eyebrow">Business flows · ${esc(head.app.ref || '')} ${head.app.commit ? '@ ' + esc(head.app.commit.slice(0, 7)) : ''}</span>
+      <h1>${esc(head.app.name)}</h1><p>${esc(head.app.summary || '')}</p></div>
+      <div class="stats"><div class="stat"><b>${head.flows.length}</b><span>entrypoints</span></div><div class="stat"><b>${decisions}</b><span>decisions</span></div><div class="stat"><b>${findings}</b><span>findings</span></div></div>`;
+    const stale = head.flows.flatMap((f) => f.nodes.filter((n) => n.stale).map((n) => f.title));
+    if (stale.length) {
+      $('stalebar').hidden = false;
+      $('stalebar').innerHTML = `<b>${stale.length} step${stale.length > 1 ? 's' : ''} need${stale.length > 1 ? '' : 's'} re-checking</b> in ${[...new Set(stale)].map(esc).join(', ')}: the code behind them changed and they have not been re-checked yet. Run <span class="mono">/im-a-pm sync</span> in your coding agent to finish.`;
+    }
+    if (diff) {
+      const n = diff.added.length + diff.removed.length + Object.keys(diff.changed).length;
+      $('compare').hidden = false;
+      $('compare').innerHTML = `<label class="switch"><input type="checkbox" id="showchg" ${state.showChanges ? 'checked' : ''}> Show changes</label>
+        <span>Compared with <span class="mono">${esc(base.app.ref || 'base')}${base.app.commit ? ' @ ' + esc(base.app.commit.slice(0, 7)) : ''}</span>: ${n ? `<b>${n}</b> flow${n > 1 ? 's' : ''} with different business behavior` : 'no business behavior changed'}.</span>
+        <span class="pill added">added</span><span class="pill changed">changed</span><span class="pill removed">removed</span>`;
+      $('showchg').onchange = (ev) => { state.showChanges = ev.target.checked; state.node = null; drawAll(true); };
+    }
+  }
+
+  function matches(f) {
+    if (!state.q) return true;
+    const q = state.q.toLowerCase();
+    return [f.title, f.summary, f.trigger?.signature, ...f.nodes.flatMap((n) => [n.label, n.rule])].some((s) => (s || '').toLowerCase().includes(q));
+  }
+  function drawIndex() {
+    const groups = new Map();
+    for (const id of allFlowIds) { const f = flowOf(id); if (!matches(f)) continue; const d = f.domain || 'Other'; (groups.get(d) || groups.set(d, []).get(d)).push(f); }
+    const html = [];
+    for (const [d, flows] of groups) {
+      html.push(`<div class="domain eyebrow">${esc(d)}</div>`);
+      for (const f of flows) {
+        const st = state.showChanges ? flowStatus(f.id) : null; const nf = (f.findings || []).length;
+        html.push(`<button type="button" class="flowbtn" data-id="${esc(f.id)}" aria-current="${state.flow === f.id}"><span class="t">${esc(f.title)}</span>
+          <span>${st ? `<span class="pill ${st}">${st}</span>` : nf ? `<span class="pill find" title="${nf} finding(s)">${nf}</span>` : ''}</span><span class="s">${esc(f.trigger?.signature || '')}</span></button>`);
+      }
+    }
+    $('flowlist').innerHTML = html.join('') || '<p class="muted" style="padding:10px">No flow matches that search.</p>';
+    $('flowlist').querySelectorAll('.flowbtn').forEach((b) => b.addEventListener('click', () => select(b.dataset.id)));
+  }
+  $('q').addEventListener('input', (ev) => { state.q = ev.target.value.trim(); drawIndex(); });
+
+  function changeSentences(id) {
+    const st = flowStatus(id); if (!st) return [];
+    if (st === 'added') return ['This flow is new.'];
+    if (st === 'removed') return ['This flow no longer exists.'];
+    const d = diff.changed[id], hf = headFlows.get(id), bf = baseFlows.get(id), out = [];
+    const lbl = (f, nid) => f.nodes.find((n) => n.id === nid)?.label || nid;
+    for (const n of d.nodes.added) out.push(`New step: “${lbl(hf, n)}”`);
+    for (const n of d.nodes.removed) out.push(`Removed step: “${lbl(bf, n)}”`);
+    for (const c of d.nodes.changed) {
+      if (c.fields.rule) out.push(`Rule changed in “${lbl(hf, c.id)}”`);
+      else if (c.fields.label) out.push(`Reworded: “${c.fields.label[0]}” → “${c.fields.label[1]}”`);
+      else out.push(`Changed: “${lbl(hf, c.id)}”`);
+    }
+    for (const nid of d.nodes.implChanged || []) out.push(`Code path changed in “${lbl(hf, nid)}”, same business rule`);
+    if (!out.length && (d.edges.added.length || d.edges.removed.length)) out.push('The order of steps changed.');
+    for (const [k, [a, b]] of Object.entries(d.fields)) out.push(`${k}: “${a ?? '—'}” → “${b ?? '—'}”`);
+    return out;
+  }
+
+  function drawFlowHead() {
+    const f = flowOf(state.flow);
+    const outcomes = f.nodes.filter((n) => n.type === 'outcome');
+    const happy = outcomes.find((o) => o.id === f.happyPath);
+    const others = outcomes.filter((o) => o.id !== f.happyPath);
+    const chips = [`<button type="button" class="pathbtn" data-p="all" aria-pressed="${state.path === 'all'}">All paths</button>`];
+    if (happy) chips.push(`<button type="button" class="pathbtn success" data-p="${esc(happy.id)}" aria-pressed="${state.path === happy.id}"><span class="dot"></span>Happy path: ${esc(happy.label)}</button>`);
+    for (const o of others) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}"><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
+    const changes = state.showChanges ? changeSentences(f.id) : [];
+    const findings = f.findings || [];
+    const notes = [
+      ...changes.map((t) => `<div class="note change"><span class="k">Change</span><span>${esc(t)}</span></div>`),
+      ...findings.map((x, i) => `<button type="button" class="note" data-f="${i}"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></button>`),
+    ];
+    $('flowhead').innerHTML = `<div class="meta"><span class="eyebrow">${esc(f.domain || '')}</span>${f.actor ? `<span>Started by <b>${esc(f.actor)}</b></span>` : ''}<span class="trigger">${esc(f.trigger?.kind || '')} · ${esc(f.trigger?.signature || '')}</span></div>
+      <h2>${esc(f.title)}</h2>${f.summary ? `<p>${esc(f.summary)}</p>` : ''}
+      ${f.trigger?.channel ? `<div class="links"><span class="muted">Starts when</span>${(emitters.get(f.trigger.channel) || []).map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.flow.id)}" data-gonode="${esc(x.node.id)}">↰ ${esc(x.flow.title)}: ${esc(x.node.label)}</button>`).join('') || `<span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span>`}</div>` : ''}
+      <div class="paths" role="group" aria-label="Paths">${chips.join('')}</div>
+      ${notes.length ? `<details class="collapse" ${changes.length || findings.length <= 2 ? 'open' : ''}><summary>${changes.length ? `${changes.length} change${changes.length > 1 ? 's' : ''}` : ''}${changes.length && findings.length ? ' · ' : ''}${findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : ''}</summary><div class="notes" style="margin-top:6px">${notes.join('')}</div></details>` : ''}`;
+    $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, [b.dataset.gonode])));
+    $('flowhead').querySelectorAll('.pathbtn').forEach((b) => b.addEventListener('click', () => { state.path = b.dataset.p; drawFlowHead(); drawCanvas(false); }));
+    $('flowhead').querySelectorAll('.note[data-f]').forEach((b) => b.addEventListener('click', () => { const x = findings[+b.dataset.f]; if (x.nodes?.[0]) { state.node = x.nodes[0]; drawCanvas(false); drawInspector(); } }));
+  }
+
+  // ------------------------------------------------------------ functions
+  function callItems(calls) {
+    return (calls || []).map((c) => `<li><span class="fn" style="padding-left:${(c.depth || 0) * 10}px">${esc(c.fn)}${c.kind && c.kind !== 'call' ? `<span class="kind">${esc(c.kind)}</span>` : ''}</span>
+      <span class="where" style="padding-left:${(c.depth || 0) * 10}px">${esc(c.file.split('/').pop())}:${c.line}${c.endLine ? '-' + c.endLine : ''}${c.note ? ` · ${esc(c.note)}` : ''}</span></li>`).join('');
+  }
+  function pathOrder(g, outcomeId) {
+    const on = onPath(g, outcomeId); const L = layout(g);
+    return g.nodes.filter((n) => on.has(n.id) && n._d !== 'removed').sort((a, b) => L.pos.get(a.id).row - L.pos.get(b.id).row || L.pos.get(a.id).x - L.pos.get(b.id).x);
+  }
+
+  // ------------------------------------------------------------ inspector
+  function command(kind, flowId, nodeId, text) {
+    const ref = nodeId ? `${flowId}/${nodeId}` : flowId;
+    const t = text.replace(/"/g, '\\"');
+    if (kind === 'change') return `/im-a-pm change ${ref} "${t}"`;
+    if (kind === 'flag') return `/im-a-pm ask "Check ${ref}. A PM thinks this is wrong: ${t}"`;
+    return `/im-a-pm ask "About ${ref}: ${t}"`;
+  }
+  function drawInspector() {
+    const box = $('inspector');
+    const g = graph(state.flow);
+    const n = g.nodes.find((x) => x.id === state.node);
+    if (!n) {
+      box.innerHTML = `<div class="empty"><span class="eyebrow">Details</span><h3>Pick a step in the flow</h3><p>Click any box to see the exact rule behind it, how sure the map is, and where it lives in the code. From there you can ask a question or request a change.</p>
+        <p>Use the path buttons above the chart to follow one outcome at a time. Scroll or drag to move around, and hold Ctrl or ⌘ while scrolling to zoom.</p>
+        <div class="actions"><button type="button" class="btn" data-k="ask">Ask about this flow</button><button type="button" class="btn" data-k="change">Request a change to this flow</button></div>${composerHtml()}
+        ${(() => { const target = state.path === 'all' ? g.flow.happyPath : state.path; const nodes = pathOrder(g, target); const total = nodes.reduce((s, n) => s + (n.calls || []).length, 0); if (!total) return '';
+          const name = target === g.flow.happyPath ? 'the happy path' : `“${esc(g.flow.outcomes?.[target] || target)}”`;
+          return `<details class="collapse"><summary>For engineers: functions on ${name}, in order (${total})</summary><ol class="calls">${nodes.map((n) => (n.calls || []).length ? `<li class="grp">${esc(n.label)}</li>${callItems(n.calls)}` : '').join('')}</ol></details>`; })()}</div>`;
+    } else {
+      const f = g.flow;
+      const findings = (f.findings || []).filter((x) => (x.nodes || []).includes(n.id));
+      const before = n._before || {};
+      const rows = [];
+      if (n.type === 'data' && n.data) rows.push(['Information', `${esc(n.data.op)} · ${esc(n.data.entity)}${n.data.fields ? ` (${n.data.fields.map(esc).join(', ')})` : ''}`]);
+      if (n.type === 'external' && n.system) rows.push(['System', esc(n.system)]);
+      if (n.type === 'outcome') { rows.push(['Result', esc(n.result)]); if (n.response) rows.push(['Response', `<span class="mono">${esc(n.response)}</span>`]); }
+      if (n.confidence) rows.push(['Confidence', `<span class="pill ${esc(n.confidence)}">${esc(n.confidence)}</span>`]);
+      const diffBlock = n._d === 'changed' ? Object.entries(before).filter(([k]) => ['label', 'rule', 'response', 'result'].includes(k)).map(([k, [a, b]]) => `<div class="before"><b>Before · ${esc(k)}</b>${esc(a ?? '—')}</div><div class="after"><b>Now · ${esc(k)}</b>${esc(b ?? '—')}</div>`).join('')
+        : n._d === 'added' ? '<div class="after"><b>New</b>This step was added.</div>' : n._d === 'removed' ? '<div class="before"><b>Removed</b>This step no longer exists.</div>' : '';
+      box.innerHTML = `<span class="eyebrow">${TYPE_NAMES[n.type]}</span><h3>${esc(n.label)}</h3>
+        ${n.rule ? `<p class="rule">${esc(n.rule)}</p>` : ''}
+        ${diffBlock}
+        ${rows.length ? `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : ''}
+        ${n.stale ? `<div class="stalebox"><b>Needs re-check</b>The code behind this step changed: ${esc((n.stale.reasons || []).join('; '))}.</div>` : ''}
+        ${findings.map((x) => `<div class="note" style="cursor:default"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></div>`).join('')}
+        ${(n.emits || []).length ? `<div class="links"><span class="muted">Continues in</span>${n.emits.map((e) => { const nx = consumers.get(e.channel) || []; return nx.length ? nx.map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.id)}" data-gonode="start">${esc(x.title)} ↳</button>`).join('') : `<span class="mono">${esc(e.channel)}</span>`; }).join('')}</div>` : ''}
+        ${n._d === 'removed' ? '' : `<div class="actions"><button type="button" class="btn" data-k="ask">Ask</button><button type="button" class="btn" data-k="change">Request change</button><button type="button" class="btn" data-k="flag">Flag as wrong</button></div>${composerHtml()}`}
+        ${n.calls?.length ? `<details class="collapse"><summary>For engineers: functions that run here, in order (${n.calls.length})</summary><ol class="calls">${callItems(n.calls)}</ol></details>` : ''}
+        ${n.anchors?.length ? `<details class="collapse"><summary>For engineers: where the rule lives</summary><div class="anchors">${n.anchors.map((a) => `<code>${esc(a.file)}:${esc(a.line)}</code>`).join('')}</div></details>` : ''}`;
+    }
+    box.querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, [b.dataset.gonode])));
+    box.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { state.composer = state.composer === b.dataset.k ? null : b.dataset.k; drawInspector(); }));
+    const ta = $('composer-text');
+    if (ta) {
+      ta.focus();
+      const cmd = $('composer-cmd');
+      const upd = () => { if (cmd) cmd.textContent = command(state.composer, state.flow, n?.id, ta.value || '…'); };
+      ta.addEventListener('input', upd); upd();
+      $('composer-send').addEventListener('click', () => send(state.composer, n?.id, ta.value.trim()));
+    }
+  }
+  function composerHtml() {
+    if (!state.composer) return '';
+    const label = { ask: 'Your question', change: 'Describe the change in business terms', flag: 'What looks wrong?' }[state.composer];
+    const ph = { ask: 'Why would this be rejected?', change: 'Only published videos should be playable', flag: 'I think drafts are hidden from the catalog' }[state.composer];
+    return `<div class="composer"><label for="composer-text" class="muted">${label}</label><textarea id="composer-text" placeholder="${esc(ph)}"></textarea>
+      ${served ? '' : `<span class="muted">Paste this into your coding agent (Claude Code, Codex, Copilot, Cursor…) in the repository:</span><div class="cmd" id="composer-cmd"></div>`}
+      <div class="actions"><button type="button" class="btn primary" id="composer-send">${served ? 'Send to agent' : 'Copy command'}</button></div><div class="toast" id="toast" role="status"></div></div>`;
+  }
+  async function send(kind, nodeId, text) {
+    const toast = $('toast');
+    if (!text) { toast.textContent = 'Write something first.'; return; }
+    if (served) {
+      try {
+        const r = await fetch('/api/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, flow: state.flow, node: nodeId || null, text }) });
+        const j = await r.json(); if (!j.ok) throw new Error(j.error);
+        toast.textContent = 'Sent. Run /im-a-pm inbox in your coding agent to process it.';
+      } catch (e) { toast.textContent = `Could not send: ${e.message}`; }
+      return;
+    }
+    const cmd = command(kind, state.flow, nodeId, text);
+    try { await navigator.clipboard.writeText(cmd); toast.textContent = 'Copied. Paste it into your coding agent.'; }
+    catch { const el = $('composer-cmd'); const sel = getSelection(); const rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg); toast.textContent = 'Select the command above and copy it.'; }
+  }
+
+  // ------------------------------------------------------------ routing
+  function select(id, fromHash, highlight) {
+    if (!flowOf(id)) id = allFlowIds[0];
+    state.flow = id; state.node = null; state.path = 'all'; state.composer = null;
+    state.hl = new Set(highlight || []);
+    if (highlight?.length === 1 && highlight[0] !== 'start') state.node = highlight[0];
+    if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', `#${id}`);
+    drawIndex(); drawFlowHead(); drawCanvas(true); drawInspector();
+  }
+  function drawAll(refit) { drawTop(); drawIndex(); drawFlowHead(); drawCanvas(refit); drawInspector(); }
+  window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== state.flow && flowOf(h)) select(h, true); });
+  let lastSize = '';
+  new ResizeObserver(([e]) => { const s = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`; if (s !== lastSize) { lastSize = s; fit(); } }).observe($('canvaswrap'));
+  document.fonts?.ready.then(() => drawCanvas(true));
+
+  // ------------------------------------------------------------ ask (AI search over the map)
+  // Uses the published page's "ask Claude" capability when the viewer offers it; hidden everywhere else.
+  function compactMap() {
+    return JSON.stringify({
+      app: { name: head.app.name, summary: head.app.summary }, glossary: head.glossary || [],
+      flows: head.flows.map((f) => ({
+        id: f.id, title: f.title, domain: f.domain, actor: f.actor, trigger: { kind: f.trigger?.kind, signature: f.trigger?.signature, channel: f.trigger?.channel },
+        summary: f.summary, happyPath: f.happyPath, outcomes: f.outcomes,
+        nodes: f.nodes.map((n) => ({ id: n.id, type: n.type, label: n.label, rule: n.rule, result: n.result, response: n.response, data: n.data, emits: (n.emits || []).map((e) => e.channel), confidence: n.confidence })),
+        edges: f.edges.map((e) => [e.from, e.to, e.label || '']),
+        findings: (f.findings || []).map((x) => ({ kind: x.kind, text: x.text, nodes: x.nodes })),
+      })),
+    });
+  }
+  const ASK_RULES = (map) => `You answer questions about the business logic of a software product, for a product manager.
+Your only source is the business-flow map below (JSON). Each flow is one entrypoint (API route, job, event, saga); nodes are its steps (decision, action, data, external, outcome); edges are [from, to, label]; "emits" lists asynchronous hand-offs, picked up by the flow whose trigger.channel matches.
+
+How to answer:
+- Plain product language, no code names. 2 to 6 short sentences, or a short list when the answer is a list of rules.
+- Cite every step you rely on as [[flow-id/node-id]] (or [[flow-id]] for a whole flow), right after the claim it supports. Use only ids that exist in the map.
+- If the map does not answer the question, say so plainly and name the closest flows. Never invent rules.
+- If a step has confidence "medium" or "low", say the map is unsure about it.
+- For questions about code ("which function…", "where is…"), call the functionsOnPath tool.
+
+Map:
+${map}`;
+  (async () => {
+    if (!window.claude?.use) return;
+    let sample = null;
+    try { sample = await window.claude.use('sample'); } catch { sample = null; }
+    if (!sample) return;
+    const limits = await sample.limits().catch(() => null);
+    const map = compactMap();
+    if (map.length > 200000) return; // too big to send in one prompt
+    const box = $('askbox'), form = $('askform'), q = $('askq'), go = $('askgo'), stop = $('askstop'), out = $('answer'), hint = $('askhint');
+    box.hidden = false;
+    hint.textContent = `Answers come from this map${head.app.commit ? ` (code as of ${head.app.commit.slice(0, 7)})` : ''}, not from live code. Asking uses your own Claude usage.`;
+    const tools = limits?.tools ? [{
+      name: 'functionsOnPath',
+      description: 'Returns the functions that run, in order, on one path of a flow: from the trigger to the given outcome (default: the happy path). Each item: step label, function name, file:line.',
+      inputSchema: { type: 'object', properties: { flow: { type: 'string', description: 'flow id' }, outcome: { type: 'string', description: 'outcome node id (optional)' } }, required: ['flow'] },
+      execute: (input) => {
+        const f = head.flows.find((x) => x.id === String(input.flow));
+        if (!f) throw new Error(`no flow ${input.flow}`);
+        const g = { flow: f, nodes: f.nodes.map((n) => ({ ...n })), edges: f.edges };
+        return pathOrder(g, String(input.outcome || f.happyPath)).flatMap((n) => (n.calls || []).map((c) => `${n.label} | ${c.fn} | ${c.file}:${c.line}${c.endLine ? '-' + c.endLine : ''}`)).slice(0, 120);
+      },
+    }] : undefined;
+    const label = (ref) => { const [fid, nid] = ref.split('/'); const f = flowOf(fid); if (!f) return null; return nid ? (f.nodes.find((n) => n.id === nid)?.label ?? null) : f.title; };
+    const renderAnswer = (text, done) => {
+      const refs = [];
+      const html = esc(text).replace(/\[\[([a-z0-9-]+(?:\/[a-z0-9-]+)?)\]\]/g, (m, ref) => {
+        const l = label(ref); if (!l) return '';
+        refs.push(ref);
+        return `<button type="button" class="cite" data-ref="${ref}" title="${esc(ref)}">${esc(l)}</button>`;
+      });
+      out.innerHTML = `<div class="text">${html}</div>${done ? `<div class="foot"><span>${new Set(refs.map((r) => r.split('/')[0])).size} flow(s) cited. Click a highlighted step to open it.</span></div>` : ''}`;
+      out.querySelectorAll('.cite').forEach((b) => b.addEventListener('click', () => {
+        const fid = b.dataset.ref.split('/')[0];
+        const sameFlow = refs.filter((r) => r.startsWith(fid + '/')).map((r) => r.split('/')[1]);
+        select(fid, false, sameFlow.length ? sameFlow : undefined);
+        if (b.dataset.ref.includes('/')) { state.node = b.dataset.ref.split('/')[1]; drawCanvas(false); drawInspector(); }
+        $('bench').scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }));
+      return refs;
+    };
+    let ctl = null;
+    stop.onclick = () => ctl?.abort();
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      const question = q.value.trim(); if (!question) { q.focus(); return; }
+      ctl = new AbortController();
+      go.disabled = true; stop.hidden = false; out.hidden = false;
+      out.innerHTML = '<div class="text muted">Thinking…</div>';
+      try {
+        const { text, truncated } = await sample(`${ASK_RULES(map)}\n\nQuestion: ${question}`, {
+          signal: ctl.signal, tools, onText: ({ text }) => renderAnswer(text, false),
+        });
+        const refs = renderAnswer(text, true);
+        if (truncated) out.insertAdjacentHTML('beforeend', '<div class="foot">The answer was cut short. Ask a narrower question.</div>');
+        const first = refs[0]?.split('/')[0];
+        if (first) select(first, false, refs.filter((r) => r.startsWith(first + '/')).map((r) => r.split('/')[1]));
+      } catch (e) {
+        if (e?.code === 'cancelled') { if (e.text) renderAnswer(e.text, true); else out.hidden = true; }
+        else if (['not_granted', 'sampling_disabled', 'not_declared', 'capability_disabled', 'capability_removed'].includes(e?.code)) { box.hidden = true; }
+        else {
+          if (e?.text) renderAnswer(e.text, true); else out.innerHTML = '';
+          const copy = { rate_limited: 'Too many questions right now. Try again in a minute.', session_expired: 'Your session expired. Sign in again, then ask.', refused: 'Claude declined that question. Try rephrasing it.', prompt_too_large: 'This map is too large to ask about in one go.', tools_unavailable: 'This view cannot look up functions. Ask about business rules instead.' }[e?.code] || 'Something went wrong while answering. Try again.';
+          out.insertAdjacentHTML('beforeend', `<div class="foot">${esc(copy)}</div>`);
+        }
+      } finally { go.disabled = false; stop.hidden = true; ctl = null; }
+    });
+  })();
+
+  // Served by `im-a-pm view|render|sync`: reload when the map is rendered again.
+  if (served) {
+    let known = null;
+    const poll = async () => {
+      try {
+        const r = await fetch('/api/version', { cache: 'no-store' });
+        const { version } = await r.json();
+        if (known === null) known = version;
+        else if (version !== known) { location.reload(); return; }
+      } catch { /* server stopped; keep the page as it is */ }
+      setTimeout(poll, 1500);
+    };
+    poll();
+  }
+
+  drawTop();
+  const initial = location.hash.slice(1);
+  const firstChanged = diff ? [...diff.added, ...Object.keys(diff.changed), ...diff.removed][0] : null;
+  select(flowOf(initial) ? initial : firstChanged || allFlowIds[0], true);
+})();
+</script>

@@ -1,0 +1,114 @@
+diff --git a/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java b/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java
+index 27a1712..503b440 100644
+--- a/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java
++++ b/src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java
+@@ -85,8 +85,8 @@ public class VideoService {
+      * @throws NotFoundException if the video does not exist
+      */
+     public Video incrementView(UUID id) throws NotFoundException {
+-        // Get the existing video by ID
+-        Video video = this.findOne(id);
++        // Only published videos can be played
++        Video video = this.findOnePublished(id);
+ 
+         // Increment the view count
+         video.addView();
+@@ -105,8 +105,8 @@ public class VideoService {
+      * @throws NotFoundException if the video does not exist
+      */
+     public Video incrementImpression(UUID id) throws NotFoundException {
+-        // Get the existing video by ID
+-        Video video = this.findOne(id);
++        // Only published videos can be opened by viewers
++        Video video = this.findOnePublished(id);
+ 
+         // Increment the impression count
+         video.addImpression();
+@@ -150,6 +150,22 @@ public class VideoService {
+                 .orElseThrow(() -> new NotFoundException());
+     }
+ 
++    /**
++     * Retrieves a published video by its ID. Viewers never see drafts.
++     *
++     * @param id the UUID of the video
++     * @return the Video entity
++     * @throws NotFoundException if the video does not exist, is archived or is not
++     *                           published
++     */
++    public Video findOnePublished(UUID id) throws NotFoundException {
++        Video video = this.findOne(id);
++        if (video.getStatus() != Status.PUBLISHED) {
++            throw new NotFoundException();
++        }
++        return video;
++    }
++
+     /**
+      * Finds videos matching the given criteria.
+      * All parameters are optional and can be null to ignore that filter.
+diff --git a/src/main/java/com/eeze/video/infrastructure/databases/VideoDatabase.java b/src/main/java/com/eeze/video/infrastructure/databases/VideoDatabase.java
+index 328fa8a..5797ac8 100644
+--- a/src/main/java/com/eeze/video/infrastructure/databases/VideoDatabase.java
++++ b/src/main/java/com/eeze/video/infrastructure/databases/VideoDatabase.java
+@@ -29,7 +29,7 @@ public interface VideoDatabase extends JpaRepository<DatabaseVideoEntity, UUID>
+         /**
+          * Finds video entities matching the given criteria.
+          * All parameters are optional and can be null to ignore that filter.
+-         * Excludes videos with ARCHIVED status.
++         * Only returns PUBLISHED videos (drafts and archived videos are hidden).
+          *
+          * @param title         the title to search for (partial match)
+          * @param director      the director to search for (partial match)
+@@ -44,7 +44,7 @@ public interface VideoDatabase extends JpaRepository<DatabaseVideoEntity, UUID>
+                                 AND (?3 IS NULL OR e.metadata_genre ILIKE CONCAT('%', ?3, '%'))
+                                 AND (?4 IS NULL OR e.metadata_year_of_release = ?4)
+                                 AND (?5 IS NULL OR LOWER(?5) = ANY(LOWER(e.metadata_cast::text)::text[]))
+-                                AND e.status != 'ARCHIVED'
++                                AND e.status = 'PUBLISHED'
+                         """)
+         List<DatabaseVideoEntity> findByCriteria(
+                         @Param("title") String title,
+diff --git a/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java b/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java
+index da820c6..0fcb76f 100644
+--- a/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java
++++ b/src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java
+@@ -93,6 +93,7 @@ public class VideoServiceTest {
+     @Test
+     public void testIncrementView() throws NotFoundException {
+         // Arrange
++        testVideo.setStatus(Status.PUBLISHED);
+         when(videoRepository.findValid(testId)).thenReturn(Optional.of(testVideo));
+         when(videoRepository.save(any(Video.class))).thenReturn(testVideo);
+ 
+@@ -107,9 +108,30 @@ public class VideoServiceTest {
+         assertEquals(0, savedVideo.getEngagement().getImpressions());
+     }
+ 
++    @Test
++    public void testIncrementViewRejectsDraft() throws NotFoundException {
++        // Arrange: testVideo is a draft
++        when(videoRepository.findValid(testId)).thenReturn(Optional.of(testVideo));
++
++        // Act & Assert
++        assertThrows(NotFoundException.class, () -> videoService.incrementView(testId));
++        verify(videoRepository, never()).save(any(Video.class));
++    }
++
++    @Test
++    public void testIncrementImpressionRejectsDraft() throws NotFoundException {
++        // Arrange: testVideo is a draft
++        when(videoRepository.findValid(testId)).thenReturn(Optional.of(testVideo));
++
++        // Act & Assert
++        assertThrows(NotFoundException.class, () -> videoService.incrementImpression(testId));
++        verify(videoRepository, never()).save(any(Video.class));
++    }
++
+     @Test
+     public void testIncrementImpression() throws NotFoundException {
+         // Arrange
++        testVideo.setStatus(Status.PUBLISHED);
+         when(videoRepository.findValid(testId)).thenReturn(Optional.of(testVideo));
+         when(videoRepository.save(any(Video.class))).thenReturn(testVideo);
+ 
