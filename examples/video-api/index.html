@@ -93,14 +93,18 @@ button, input, textarea { font: inherit; color: inherit; }
 .eyebrow { font-size: var(--step--1); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 
 /* top bar */
-.top { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 24px; padding-bottom: 14px; border-bottom: 1px solid var(--line); }
-.brand { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
-.brand h1 { font-size: var(--step-3); font-weight: 700; letter-spacing: -.01em; }
-.brand p { margin: 0; color: var(--muted); max-width: 70ch; }
-.stats { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.stat { display: flex; flex-direction: column; padding: 6px 12px; border-left: 1px solid var(--line); }
-.stat b { font-family: var(--font-display); font-size: var(--step-2); font-variant-numeric: tabular-nums; line-height: 1.1; }
-.stat span { font-size: var(--step--1); color: var(--muted); }
+.top { display: flex; align-items: baseline; gap: 6px 20px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: baseline; gap: 10px; flex: none; }
+.brand h1 { font-size: var(--step-2); font-weight: 700; letter-spacing: -.01em; }
+.about { flex: 1 1 auto; min-width: 0; color: var(--muted); }
+.stats { display: flex; gap: 14px; align-items: baseline; flex: none; font-size: var(--step--1); color: var(--muted); }
+.stats b { font-family: var(--font-display); font-size: var(--step-1); color: var(--ink); font-variant-numeric: tabular-nums; }
+/* One-line text that expands on click. */
+.clamp { display: block; border: 0; background: none; padding: 0; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.clamp.open { white-space: normal; }
+.clamp.fits { cursor: default; }
+.clamp:not(.fits):hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+@media (max-width: 720px) { .top { flex-wrap: wrap; } .about { flex-basis: 100%; order: 3; } }
 
 .compare { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 12px; background: var(--chg-bg); border: 1px solid var(--chg); border-radius: 8px; }
 .compare[hidden] { display: none; }
@@ -137,9 +141,10 @@ button, input, textarea { font: inherit; color: inherit; }
 .flowhead h2 { font-size: var(--step-2); }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; color: var(--muted); }
 .trigger { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
-.flowhead p { margin: 0; max-width: 75ch; }
+.flowhead .fsum { color: var(--ink); max-width: 100%; }
 .paths { display: flex; flex-wrap: wrap; gap: 6px; }
-.pathbtn { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); }
+.pathbtn .t, .linkbtn .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.pathbtn { max-width: 300px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); }
 .pathbtn .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .pathbtn.success .dot { background: var(--ok-line); }
 .pathbtn.rejected .dot { background: var(--rej-line); }
@@ -177,7 +182,7 @@ details.collapse > summary { cursor: pointer; color: var(--muted); font-weight: 
 .node.hl { box-shadow: 0 0 0 4px var(--accent), 0 0 0 9px var(--accent-soft); }
 .node .handoff { font-size: 11px; font-weight: 600; color: var(--external-line); }
 .links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.linkbtn { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--external-line); color: var(--ink); background: var(--external-bg); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
+.linkbtn { max-width: 340px; display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--external-line); color: var(--ink); background: var(--external-bg); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
 .linkbtn:hover { border-style: solid; }
 .linkbtn .count { font-weight: 500; opacity: .75; }
 .linkmore { border: 1px dashed var(--line); background: none; color: var(--muted); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
@@ -756,9 +761,11 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
   function drawTop() {
     const decisions = head.flows.reduce((s, f) => s + f.nodes.filter((n) => n.type === 'decision').length, 0);
     const findings = head.flows.reduce((s, f) => s + (f.findings || []).length, 0);
-    $('top').innerHTML = `<div class="brand"><span class="eyebrow">Business flows · ${esc(head.app.ref || '')} ${head.app.commit ? '@ ' + esc(head.app.commit.slice(0, 7)) : ''}</span>
-      <h1>${esc(head.app.name)}</h1><p>${esc(head.app.summary || '')}</p></div>
-      <div class="stats"><div class="stat"><b>${head.flows.length}</b><span>entrypoints</span></div><div class="stat"><b>${decisions}</b><span>decisions</span></div><div class="stat"><b>${findings}</b><span>findings</span></div></div>`;
+    // One line: name, version, description (click to read it all), counts.
+    $('top').innerHTML = `<div class="brand"><h1>${esc(head.app.name)}</h1><span class="eyebrow">${esc(head.app.ref || '')}${head.app.commit ? ' @ ' + esc(head.app.commit.slice(0, 7)) : ''}</span></div>
+      ${head.app.summary ? `<button type="button" class="about clamp${state.aboutOpen ? ' open' : ''}" id="about" aria-expanded="${!!state.aboutOpen}">${esc(head.app.summary)}</button>` : '<span class="about"></span>'}
+      <div class="stats"><span><b>${head.flows.length}</b> entrypoints</span><span><b>${decisions}</b> decisions</span><span><b>${findings}</b> findings</span></div>`;
+    clampable($('about'), () => { state.aboutOpen = !state.aboutOpen; drawTop(); });
     const stale = head.flows.flatMap((f) => f.nodes.filter((n) => n.stale).map((n) => f.title));
     if (stale.length) {
       $('stalebar').hidden = false;
@@ -816,28 +823,46 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
   }
 
   // "Starts when": the steps of other flows that hand off to this one. Many flows can feed one
-  // (a saga that reacts to every report update), so the list starts grouped by flow and short.
-  const STARTS_LIMIT = 3;
+  // (a saga that reacts to every report update), so the row starts as one chip per flow, on one line.
   function startsWhenHtml(f) {
     if (!f.trigger?.channel) return '';
     const em = emitters.get(f.trigger.channel) || [];
     if (!em.length) return `<div class="links"><span class="muted">Starts when</span><span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span></div>`;
-    const chip = (flowId, nodeIds, text, tip = '') => `<button type="button" class="linkbtn" data-goflow="${esc(flowId)}" data-gonode="${esc(nodeIds.join(','))}"${tip ? ` title="${esc(tip)}"` : ''}>↰ ${text}</button>`;
-    if (em.length <= STARTS_LIMIT || state.startsOpen) {
-      const all = em.map((x) => chip(x.flow.id, [x.node.id], `${esc(x.flow.title)}: ${esc(x.node.label)}`)).join('');
-      const less = em.length > STARTS_LIMIT ? '<button type="button" class="linkmore" data-starts="less">Show less</button>' : '';
-      return `<div class="links"><span class="muted">Starts when</span>${all}${less}</div>`;
+    const chip = (flowId, nodeIds, text, tip, opt) => `<button type="button" class="linkbtn" data-goflow="${esc(flowId)}" data-gonode="${esc(nodeIds.join(','))}" title="${esc(tip)}"${opt ? ' data-fit="opt"' : ''}>↰ <span class="t">${text}</span></button>`;
+    if (state.startsOpen) {
+      const all = em.map((x) => chip(x.flow.id, [x.node.id], `${esc(x.flow.title)}: ${esc(x.node.label)}`, `${x.flow.title}: ${x.node.label}`, false)).join('');
+      return `<div class="links"><span class="muted">Starts when</span>${all}<button type="button" class="linkmore" data-starts="less">Show less</button></div>`;
     }
     const groups = new Map();
     for (const x of em) (groups.get(x.flow.id) || groups.set(x.flow.id, { flow: x.flow, nodes: [] }).get(x.flow.id)).nodes.push(x.node);
     const list = [...groups.values()];
-    // Collapsed: one short chip per flow (the steps are in the tooltip and in "show all").
-    const shown = list.slice(0, STARTS_LIMIT).map((gr) => chip(gr.flow.id, gr.nodes.map((n) => n.id),
+    const chips = list.map((gr, k) => chip(gr.flow.id, gr.nodes.map((n) => n.id),
       `${esc(gr.flow.title)}${gr.nodes.length > 1 ? ` <span class="count">· ${gr.nodes.length} steps</span>` : ''}`,
-      gr.nodes.map((n) => n.label).join('\n'))).join('');
-    const hiddenFlows = list.length - Math.min(list.length, STARTS_LIMIT);
-    const more = `<button type="button" class="linkmore" data-starts="more" title="Show every step that starts this flow">${hiddenFlows ? `+${hiddenFlows} more flow${hiddenFlows > 1 ? 's' : ''} · ` : ''}show all ${em.length} steps</button>`;
-    return `<div class="links"><span class="muted">Starts when</span>${shown}${more}</div>`;
+      `${gr.flow.title}\n${gr.nodes.map((n) => '· ' + n.label).join('\n')}`, k > 0)).join('');
+    const showAll = em.length > list.length;
+    return `<div class="links" data-fitrow="starts" data-total="${em.length}" data-showall="${showAll}"><span class="muted">Starts when</span>${chips}<button type="button" class="linkmore" data-starts="more" data-fitmore${showAll ? '' : ' hidden'}>show all ${em.length} steps</button></div>`;
+  }
+  // Keep a row of chips on one line: hide optional chips from the end until it fits, and say how
+  // many are hidden on the row's "more" button.
+  function fitRow(row, label) {
+    if (!row) return;
+    const more = row.querySelector('[data-fitmore]');
+    const opt = [...row.querySelectorAll('[data-fit="opt"]')];
+    const always = row.dataset.showall === 'true';
+    const oneLine = () => { const kids = [...row.children].filter((k) => !k.hidden); return kids.every((k) => Math.abs(k.offsetTop - kids[0].offsetTop) < 4); };
+    opt.forEach((k) => { k.hidden = false; });
+    if (more) { more.hidden = !always; more.textContent = label(0); }
+    if (oneLine()) return;
+    if (more) more.hidden = false;
+    let hidden = 0;
+    for (let i = opt.length - 1; i >= 0 && !oneLine(); i--) { opt[i].hidden = true; hidden++; if (more) more.textContent = label(hidden); }
+  }
+  // One-line text: clicking expands it, but only when it is actually cut.
+  function clampable(el, toggle) {
+    if (!el) return;
+    if (!el.classList.contains('open') && el.scrollWidth <= el.clientWidth + 1) { el.classList.add('fits'); el.disabled = false; el.title = ''; return; }
+    el.title = el.classList.contains('open') ? 'Show less' : 'Show all';
+    el.addEventListener('click', toggle);
   }
   function drawFlowHead() {
     const f = flowOf(state.flow);
@@ -845,15 +870,15 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     const happy = outcomes.find((o) => o.id === f.happyPath);
     const others = outcomes.filter((o) => o.id !== f.happyPath);
     const chips = [`<button type="button" class="pathbtn" data-p="all" aria-pressed="${state.path === 'all'}">All paths</button>`];
-    if (happy) chips.push(`<button type="button" class="pathbtn success" data-p="${esc(happy.id)}" aria-pressed="${state.path === happy.id}"><span class="dot"></span>Happy path: ${esc(happy.label)}</button>`);
-    // Many outcomes make a long row: show the first few (and the selected one) until expanded.
-    const PATHS_LIMIT = 3;
-    const collapsed = others.length > PATHS_LIMIT + 1 && !state.pathsOpen;
-    const visible = collapsed ? others.filter((o, k) => k < PATHS_LIMIT || o.id === state.path) : others;
-    for (const o of visible) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}${o.implicit ? ' implicit' : ''}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}" ${o.implicit ? 'title="Not handled in code"' : ''}><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
-    if (others.length > PATHS_LIMIT + 1) chips.push(collapsed
-      ? `<button type="button" class="linkmore" data-paths="more" title="Show every outcome of this flow">+${others.length - visible.length} more path${others.length - visible.length > 1 ? 's' : ''}</button>`
-      : '<button type="button" class="linkmore" data-paths="less">Show fewer</button>');
+    if (happy) chips.push(`<button type="button" class="pathbtn success" data-p="${esc(happy.id)}" aria-pressed="${state.path === happy.id}" title="Happy path: ${esc(happy.label)}"><span class="dot"></span><span class="t">Happy path: ${esc(happy.label)}</span></button>`);
+    // Alternate outcomes may be hidden to keep the row on one line, except the selected one.
+    for (const o of others) {
+      const name = f.outcomes?.[o.id] || o.label;
+      chips.push(`<button type="button" class="pathbtn ${esc(o.result)}${o.implicit ? ' implicit' : ''}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}" title="${esc(name)}${o.implicit ? ' (not handled in code)' : ''}"${!state.pathsOpen && o.id !== state.path ? ' data-fit="opt"' : ''}><span class="dot"></span><span class="t">${esc(name)}</span></button>`);
+    }
+    chips.push(state.pathsOpen
+      ? '<button type="button" class="linkmore" data-paths="less">Show fewer</button>'
+      : '<button type="button" class="linkmore" data-paths="more" data-fitmore hidden title="Show every outcome of this flow"></button>');
     const changes = state.showChanges ? changeSentences(f.id) : [];
     const findings = f.findings || [];
     const notes = [
@@ -861,10 +886,14 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
       ...findings.map((x, i) => `<button type="button" class="note" data-f="${i}"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></button>`),
     ];
     $('flowhead').innerHTML = `<div class="meta"><span class="eyebrow">${esc(f.domain || '')}</span>${f.actor ? `<span>Started by <b>${esc(f.actor)}</b></span>` : ''}<span class="trigger">${esc(f.trigger?.kind || '')} · ${esc(f.trigger?.signature || '')}</span></div>
-      <h2>${esc(f.title)}</h2>${f.summary ? `<p>${esc(f.summary)}</p>` : ''}
+      <h2>${esc(f.title)}</h2>${f.summary ? `<button type="button" class="fsum clamp${state.summaryOpen ? ' open' : ''}" id="fsum" aria-expanded="${!!state.summaryOpen}">${esc(f.summary)}</button>` : ''}
       ${startsWhenHtml(f)}
-      <div class="paths" role="group" aria-label="Paths">${chips.join('')}</div>
+      <div class="paths" role="group" aria-label="Paths" data-fitrow="paths">${chips.join('')}</div>
       ${notes.length ? `<details class="collapse" ${changes.length || findings.length <= 2 ? 'open' : ''}><summary>${changes.length ? `${changes.length} change${changes.length > 1 ? 's' : ''}` : ''}${changes.length && findings.length ? ' · ' : ''}${findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : ''}</summary><div class="notes" style="margin-top:6px">${notes.join('')}</div></details>` : ''}`;
+    fitRow($('flowhead').querySelector('[data-fitrow="paths"]'), (n) => `+${n} more path${n > 1 ? 's' : ''}`);
+    const startsRow = $('flowhead').querySelector('[data-fitrow="starts"]');
+    fitRow(startsRow, (n) => `${n ? `+${n} more flow${n > 1 ? 's' : ''} · ` : ''}show all ${startsRow?.dataset.total} steps`);
+    clampable($('fsum'), () => { state.summaryOpen = !state.summaryOpen; drawFlowHead(); });
     $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, b.dataset.gonode.split(','))));
     $('flowhead').querySelectorAll('[data-starts]').forEach((b) => b.addEventListener('click', () => { state.startsOpen = b.dataset.starts === 'more'; drawFlowHead(); }));
     $('flowhead').querySelectorAll('.pathbtn').forEach((b) => b.addEventListener('click', () => { state.path = b.dataset.p; drawFlowHead(); drawCanvas(false); }));
@@ -998,7 +1027,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
   // ------------------------------------------------------------ routing
   function select(id, fromHash, highlight) {
     if (!flowOf(id)) id = allFlowIds[0];
-    state.flow = id; state.node = null; state.path = 'all'; state.composer = null; state.startsOpen = false; state.pathsOpen = false;
+    state.flow = id; state.node = null; state.path = 'all'; state.composer = null; state.startsOpen = false; state.pathsOpen = false; state.summaryOpen = false;
     state.hl = new Set(highlight || []);
     if (highlight?.length === 1 && highlight[0] !== 'start') state.node = highlight[0];
     if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', `#${id}`);
@@ -1006,9 +1035,11 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
   }
   function drawAll(refit) { drawTop(); drawIndex(); drawFlowHead(); drawCanvas(refit); drawInspector(); }
   window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== state.flow && flowOf(h)) select(h, true); });
+  let refit = 0;
+  window.addEventListener('resize', () => { cancelAnimationFrame(refit); refit = requestAnimationFrame(() => { if (state.flow) { drawTop(); drawFlowHead(); } }); });
   let lastSize = '';
   new ResizeObserver(([e]) => { const s = `${Math.round(e.contentRect.width)}x${Math.round(e.contentRect.height)}`; if (s !== lastSize) { lastSize = s; fit(); } }).observe($('canvaswrap'));
-  document.fonts?.ready.then(() => drawCanvas(true));
+  document.fonts?.ready.then(() => { drawCanvas(true); if (state.flow) { drawTop(); drawFlowHead(); } });
 
   // ------------------------------------------------------------ ask (AI search over the map)
   // Uses the published page's "ask Claude" capability when the viewer offers it; hidden everywhere else.
