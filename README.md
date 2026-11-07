@@ -1,18 +1,43 @@
 # im-a-pm
 
-**See your codebase the way a product manager does.** im-a-pm is an agent skill that turns a
-repository into a map of business flows. Every entrypoint becomes a flowchart: an API route, a
-queue worker, an event handler, a saga, a cron job. Each flowchart runs from the trigger, through
-the business decisions, to what the user gets back. You can ask questions about it, request
-changes from it, and see which business rules a branch changes.
+**See your codebase the way a product manager does.** im-a-pm is an agent skill. It turns a
+repository into a map of its business flows: every API route, queue worker, event handler, saga
+and cron job becomes a flowchart. Each flowchart runs from the trigger, through the business
+decisions, to what the user gets back. You can ask questions about it, request changes from it,
+and see which business rules a branch changes.
 
-It works with **Claude Code, Codex, GitHub Copilot, Cursor and Gemini CLI**, and with any other
-agent that reads [Agent Skills](https://agentskills.io) (`SKILL.md`). Use `/im-a-pm`, or the
+It works with **Claude Code, Codex, GitHub Copilot, Cursor and Gemini CLI**, and with any agent
+that reads [Agent Skills](https://agentskills.io) (`SKILL.md`). Call it with `/im-a-pm`, or the
 shorter `/imapm`.
 
-![The im-a-pm viewer showing the "Publish a video" flow, with a changed rule highlighted](docs/viewer.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/hero-dark.png">
+  <img alt="The im-a-pm viewer showing the checkout flow of the shop example: decisions, a payment retry loop, a path the code doesn't handle, and the actions panel" src="docs/hero.png">
+</picture>
+
+```bash
+npx github:danilojpferreira/im-a-pm install   # once, for every agent you use
+/im-a-pm build                                 # in your agent, inside the repository
+```
 
 ---
+
+## Contents
+
+- [Why](#why)
+- [A tour of the viewer](#a-tour-of-the-viewer)
+  - [What changed in this branch](#what-changed-in-this-branch)
+  - [Ask, request a change, flag as wrong](#ask-request-a-change-flag-as-wrong)
+  - [Paths the code doesn't handle](#paths-the-code-doesnt-handle)
+  - [Loops and retries](#loops-and-retries)
+  - [Parallel work and batches](#parallel-work-and-batches)
+- [Install](#install)
+- [Commands](#commands)
+- [How it works](#how-it-works)
+- [What it maps](#what-it-maps)
+- [Examples](#examples)
+- [Helper CLI](#helper-cli)
+- [Good to know](#good-to-know)
 
 ## Why
 
@@ -21,52 +46,102 @@ spread across controllers, services, validation annotations, SQL filters and que
 im-a-pm has your coding agent read all of that once and write it down as decisions a PM can
 follow:
 
-> **Publish a video**: Does the video exist and is it not deleted? → Is it still a draft? →
-> Does it have content? → Are all six details filled in? → Video is live.
+> **Place an order**: Is the customer signed in? → Does the cart have items? → Is every item in
+> stock? → Is the order $100 or more? → Charge the card (up to 3 attempts) → Save the order →
+> Send it to shipping.
 
-Every box keeps a link to the exact lines it came from, so engineers can check it.
+Every box keeps a link to the lines it came from, a confidence grade, and the functions that run
+for it, so engineers can check it. The map is a JSON file in your repository. When the code
+changes, `/im-a-pm sync` re-checks only the steps whose code changed.
 
-## What you get
+## A tour of the viewer
 
-- **One flowchart per entrypoint**, in product language: decisions are yes/no questions, rules
-  carry their real values ("year of release must be 1878 or later"), and every alternate outcome
-  has a name.
-- **Findings**: what a PM would be surprised by. Examples: "drafts appear in search results",
-  "a video uploaded without content can never be published", "the code comment says partial
-  match, the query needs an exact name".
-- **The function order of every path**, folded away under "For engineers". This includes what the
-  framework runs for you: routing, validation, exception handlers, guards, query filters.
-- **Linked asynchronous flows.** When checkout puts a job on a queue, you can click through to
-  the worker that picks it up.
-- **Sync.** The map records the commit it describes. `sync` reads what changed since then,
-  re-checks only the affected steps, and flags new entrypoints.
-- **Change requests.** A PM writes "only published videos should be playable". The agent turns it
-  into a tested change on its own branch for engineers to review. It never pushes on its own.
-- **Behavioral diffs.** "This branch adds the Unpublish flow and makes running time optional for
-  publishing," instead of a list of changed files.
-- **A viewer that opens itself.** Every build, sync, change or diff serves the map locally and
-  opens it in your browser. A tab that is already open reloads in place.
+These screenshots come from [`examples/shop`](examples/shop), a small order system that uses
+everything below. Every build, sync, change or diff opens the viewer in your browser by itself.
 
-## Quick start
+### What changed in this branch
 
-```bash
-# 1. Install the skills for every supported agent (needs Node 18+)
-npx github:danilojpferreira/im-a-pm install
+![Checkout with "Show changes" on: two new steps outlined in green, a changed step in amber, and the inspector showing the rule before and after](docs/changes.png)
 
-# 2. In the repository you want to map, start your agent and run:
-/im-a-pm build
+Turn on **Show changes** to compare the map with another branch or version, here `v1`.
+- **Green** steps are new.
+- **Amber** steps have a different rule. Click one to see the rule before and after.
+- The flow list marks whole flows as *added* or *changed*.
+
+The same diff is available as text for a pull request (`/im-a-pm diff main`):
+
+```text
++ New flow: Invoice the day's orders
+~ Place an order
+    + Is the order $100 or more?
+    + Ship for free
+    ~ Add $7.90 shipping (rule): "Every order pays $7.90 shipping." → "Orders under $100 pay $7.90 shipping."
 ```
 
-The agent inventories the entrypoints, traces each one, writes `.im-a-pm/flows.json`, and opens
-the map at `http://127.0.0.1:4178`. Commit `.im-a-pm/flows.json` so that every branch and pull
-request carries its own map.
+### Ask, request a change, flag as wrong
+
+<table>
+  <tr>
+    <td width="50%"><img alt="The actions panel: Request a change, Ask a question, Flag as wrong" src="docs/actions.png"></td>
+    <td width="50%"><img alt="A change request being written for the step 'Any payment attempts left?', with the current rule, suggested wordings and what happens next" src="docs/actions-request.png"></td>
+  </tr>
+</table>
+
+Every step, and every flow, ends with **What do you want to do?**
+
+| Action | What you write | What happens |
+|---|---|---|
+| **Request a change** (the main action) | The new rule, in business words: "Retry up to 5 times". The current rule is shown above the box, with suggested wordings below it. | Your agent restates it as *current rule → new rule* and lists the other flows affected. It then changes the code on an `im-a-pm/<slug>` branch with tests, updates the map, and shows the behavioral diff. Nothing is pushed. |
+| **Ask a question** | "Why does this exist?" or "What happens if the provider times out?" | The answer comes back in product language, checked against the code, and names the steps it relies on. |
+| **Flag as wrong** | What you see in the real product. | Your agent re-checks that step against the code, then fixes the map or explains why it is right. |
+
+Where the request goes depends on how the map is open:
+- **Served by im-a-pm** (the default after `build`, `sync` or `view`): it is saved in
+  `.im-a-pm/requests/`, and your agent processes it with `/im-a-pm inbox`.
+- **Opened as a plain file**: it becomes a ready-to-paste `/im-a-pm` command.
+- **Published as a [Claude artifact](https://claude.ai)**: *Ask* goes straight to Claude, and the
+  answer cites the steps, which light up on the chart. That same page also has a search box for
+  questions about any business rule.
+
+### Paths the code doesn't handle
+
+![Checkout with the "Charged but not saved" path selected: "Save fails" leads to a dashed, grey outcome tagged NOT IN CODE](docs/undeclared.png)
+
+Some of the most important behavior is what nobody wrote code for: an uncaught error, a missing
+`else`, a failure right after a side effect. The map shows these as **dashed paths and outcomes
+tagged NOT IN CODE**, with what happens by default. In the shop, if saving the order fails
+after the card is charged, the customer pays, gets a generic error, and nothing refunds them. The
+agent records these deliberately and adds them to the flow's findings.
+
+### Loops and retries
+
+![The payment retry loop: "Any payment attempts left?" → "Wait, then try again" → a dashed arrow labelled "retry" back up to "Charge the card"](docs/loop.png)
+
+Repetition is drawn as a **dashed arrow up the left side**, labelled with what repeats: a retry,
+the next page, the next batch. The condition that ends it ("Any payment attempts left?") and the
+limits ("up to 3 attempts, waiting 1 s then 2 s") are part of the map. Following a path
+includes the steps it repeats, both in the viewer and in `trace`.
+
+### Parallel work and batches
+
+<table>
+  <tr>
+    <td width="50%"><img alt="Shipping a paid order: the order is split by warehouse in parallel, the warehouse request is drawn as stacked cards, and 'Did every warehouse accept?' waits for all of them" src="docs/parallel.png"></td>
+    <td width="50%"><img alt="Nightly invoicing: orders are read in batches of 100, each batch's invoices are issued in parallel, and a 'next batch' loop goes back to the read" src="docs/batch.png"></td>
+  </tr>
+</table>
+
+- **Parallel** (left): the step that splits the work says what it splits ("one shipment per
+  warehouse, all at once"). The work done per item is drawn as **stacked cards**. The step that
+  waits for it says what it waits for ("all of them") and what happens when one fails.
+- **Batches** (right): nightly invoicing reads 100 orders at a time, issues that batch's invoices
+  in parallel, and loops to the next batch until none are left.
+
+The findings point out what this structure hides. Here: a retry asks every warehouse again,
+including the ones that already accepted, so one failure can create duplicate shipments. And
+when an invoice fails, the batch isn't marked as invoiced, so customers get duplicate invoices.
 
 ## Install
-
-The installer copies two skill folders, `im-a-pm` and its alias `imapm`, to where your agents
-look for skills. By default it installs for your user account (all projects) in
-`~/.claude/skills` and `~/.agents/skills`. Between them, those two folders cover every agent
-below.
 
 ```bash
 npx github:danilojpferreira/im-a-pm install                    # all agents, your user account
@@ -75,6 +150,10 @@ npx github:danilojpferreira/im-a-pm install --project          # this repository
 npx github:danilojpferreira/im-a-pm install --dir ~/my/skills  # any folder
 npx github:danilojpferreira/im-a-pm uninstall                  # same options
 ```
+
+The installer copies two skill folders, `im-a-pm` and its alias `imapm`, to where your agents
+look for skills. By default that is `~/.claude/skills` and `~/.agents/skills`, which between them
+cover every agent below. It needs Node 18+.
 
 | Agent | `--agent` | User install | `--project` install | How to call it |
 |---|---|---|---|---|
@@ -110,8 +189,8 @@ side by side, because the alias reads `../im-a-pm/SKILL.md`.
 
 **Notes**
 - Copilot reads `.claude/skills`, `.github/skills` and `.agents/skills` in a project. If you
-  install in more than one of them, you'll see the skill twice. Install with `--agent copilot`
-  only.
+  install in more than one of them you'll see the skill twice, so install with
+  `--agent copilot` only.
 - Older Codex versions read `~/.codex/skills`. Use `--dir ~/.codex/skills` for those.
 
 </details>
@@ -127,7 +206,7 @@ Every command works as `/im-a-pm …` or `/imapm …`.
 | `view` | Opens the current map. |
 | `ask "<question>"` | Answers in product language, checked against the code, and names the steps involved. |
 | `change <flow>[/<step>] "<request>"` | Restates the rule (current → new) and lists the flows affected. It then implements the change on an `im-a-pm/<slug>` branch with tests, updates the map, and shows the behavioral diff. Nothing is pushed. |
-| `inbox` | Processes questions, change requests and "flag as wrong" reports sent from the viewer. |
+| `inbox` | Processes the questions, change requests and "flag as wrong" reports sent from the viewer. |
 | `diff [<base-ref>]` | Compares business behavior with another branch (by default, the main branch) and opens the map with the changes highlighted. |
 
 ## How it works
@@ -139,86 +218,74 @@ flowchart LR
   M -->|code changes, commits B, C…| S["/im-a-pm sync<br/>diff A..HEAD"]
   S -->|"only touched steps<br/>marked re-check"| R[Agent re-checks them]
   R --> M
-  V -->|PM asks or requests a change| C["/im-a-pm change"]
+  V -->|"Request a change"| C["/im-a-pm change"]
   C -->|"branch + tests<br/>+ updated map"| D["/im-a-pm diff<br/>behavioral diff"]
 ```
 
-**The map** is one JSON file, `.im-a-pm/flows.json`. Each flow is a small graph with six kinds
-of steps: the trigger, *decisions*, *actions*, *data* (saved or read), *external* calls (payment
-providers, email, other services) and *outcomes*. Each step has:
-- the business rule in plain words
-- a confidence grade (`high` when read directly in the code, `medium` when inferred, `low` when
-  guessed)
-- a link to the line where the rule lives
-- the ordered list of functions that run for it
+**The map** is one JSON file, `.im-a-pm/flows.json`. Commit it, so that every branch and pull
+request carries its own map. Each flow is a small graph of steps:
 
-The full format is in [`skills/im-a-pm/reference/schema.md`](skills/im-a-pm/reference/schema.md).
+| Step | Drawn as | Example |
+|---|---|---|
+| Trigger | dark pill | "Customer places an order" |
+| Decision | yellow | "Is the order $100 or more?" |
+| Action | blue-grey | "Add $7.90 shipping" |
+| Data | blue | "Save the order as paid" |
+| Outside system | purple | "Charge the card" (payment provider) |
+| Outcome | green, red or grey | "Order placed", "Card declined", "Payments unavailable" |
+
+Every step carries:
+- the business rule in plain words
+- a confidence grade: `high` (read in the code), `medium` (inferred) or `low` (guessed)
+- a link to the line where the rule lives
+- the functions that run for it, in order, including what the framework runs from annotations
+  and decorators
+
+Edges can **repeat** (`loop`), steps can **split** and **join** work (`fanout`, `join`), anything
+the code doesn't handle is marked `implicit`, and asynchronous hand-offs link one flow to the next
+(`emits`, `trigger.channel`). The full format is in
+[`skills/im-a-pm/reference/schema.md`](skills/im-a-pm/reference/schema.md).
 
 **Your agent does the reading. A small script does the bookkeeping.** Understanding code needs a
 model, so building and re-checking the map is the agent's job. The skill ships a dependency-free
-Node script for everything that should be exact: checking the map, the line-level git diff behind
-`sync`, behavioral diffs, function traces, and rendering and serving the viewer. Nothing is sent
-anywhere except by your agent.
+Node script for everything that should be exact:
+- checking the map
+- the line-level git diff behind `sync`
+- behavioral diffs and function traces
+- rendering and serving the viewer
 
 **Sync is incremental.** `app.commit` records the commit the map describes. `sync` reads
-`git diff <app.commit> HEAD` and moves every line reference to where that code is now. It marks a
-step stale only if a changed block overlaps the functions listed for that step. In the example
-below, a teammate's commit changed 5 files: sync flagged 1 step out of 43, found the new endpoint,
-and shifted the line numbers of everything else.
-
-## The viewer
-
-- **Flow list** grouped by domain, with search across titles and rules, plus finding counts and
-  diff badges.
-- **Flowchart** with the happy path running down the left and rejections branching to the right.
-  Path buttons follow one outcome at a time. You can drag, scroll and zoom.
-- **Step details**: the exact rule, confidence, findings, before → after when it changed, the
-  "continues in" links for asynchronous hand-offs, and, folded away for engineers, the functions
-  in order and where the rule lives.
-- **Ask, Request change, Flag as wrong** on every step. When the viewer is served (the default),
-  these land in `.im-a-pm/requests/` for `/im-a-pm inbox`. When it is opened as a plain file, it
-  copies a ready-to-paste command instead.
-- **Opens itself, reloads itself.** `build`, `sync`, `change`, `diff` and `view` start a small
-  local server (port 4178, or the next free one) and open your browser. An open tab reloads when
-  the map changes. On a machine without a browser (SSH, containers, CI) you get the URL instead.
-  Set `IM_A_PM_NO_OPEN=1` to never open a tab, and run `im-a-pm stop` to stop the server.
-- **AI search** across all business rules, with answers that cite and highlight the steps they
-  rely on. It appears when the page is published as a [Claude artifact](https://claude.ai), which
-  lets the page ask Claude. A plain local file has no model to ask, so the box stays hidden there.
+`git diff <app.commit> HEAD`, moves every line reference to where that code is now, and marks a
+step stale only if a changed block overlaps the functions listed for it. In the `video-api`
+example, a teammate's commit changed 5 files, and sync flagged 1 step out of 43, plus the new
+endpoint.
 
 ## What it maps
 
-Entrypoints across common stacks: REST and RPC routes (Spring, NestJS, Express/Fastify/Koa,
-Next.js, FastAPI/Flask/Django, Rails, Laravel, Go, gRPC), GraphQL resolvers, message and event
-consumers (Kafka, RabbitMQ, SQS/SNS, Pub/Sub, in-process domain events), webhooks, cron and
-schedulers, queue workers (BullMQ, Sidekiq, Celery), sagas and workflows (Temporal, Step
-Functions, NestJS CQRS sagas), and CLI commands. The guide the agent follows is
+Entrypoints across common stacks:
+- REST and RPC routes: Spring, NestJS, Express/Fastify/Koa, Next.js, FastAPI/Flask/Django, Rails,
+  Laravel, Go, gRPC
+- GraphQL resolvers
+- message and event consumers: Kafka, RabbitMQ, SQS/SNS, Pub/Sub, in-process domain events
+- webhooks
+- cron jobs and schedulers
+- queue workers: BullMQ, Sidekiq, Celery
+- sagas and workflows: Temporal, Step Functions, NestJS CQRS sagas
+- CLI commands
+
+The guide the agent follows is
 [`skills/im-a-pm/reference/entrypoints.md`](skills/im-a-pm/reference/entrypoints.md).
+Declarative code is traced as part of the flow, not skipped: annotations and decorators, DI
+containers, validation pipes, exception mappers, ORM query filters and config flags.
 
-Declarative code is the point, not an edge case. Annotations and decorators, DI containers,
-validation pipes, exception mappers, ORM query filters and config flags are traced as part of
-the flow, with a `kind` that says the framework runs them.
+## Examples
 
-## Example: `video-api`
+| Example | What it is | Look at |
+|---|---|---|
+| [`examples/video-api`](examples/video-api) | A real Spring Boot API, mapped end to end: a build, a change request that went through tests, and a sync after a teammate's commit. | `sync-report.txt`, `diff.txt`, `trace-publish-video.txt` |
+| [`examples/shop`](examples/shop) | A small order system written for these docs, with a payment retry loop, parallel shipping, nightly batches, and paths the code doesn't handle. The map was written by hand for the docs; every line reference points at the code in `src/`. | `index.html` with **Show changes** on, `change-v1-to-now.diff` |
 
-[`examples/video-api/`](examples/video-api/) is a real run on a Spring Boot API. Open
-`index.html` to explore it. It covers three stages:
-
-1. **Build**: 7 entrypoints, 10 decisions and 13 findings. Some of them: drafts showed up in
-   search and could be played by anyone with the link; a video uploaded with empty content could
-   never be published; there was no way to unpublish or restore.
-2. **Change**: "Viewers should only see published videos." The agent found 3 affected flows,
-   changed 2 files, fixed the 2 tests that assumed the old behavior and added 2 more. All 38 tests
-   passed. The behavioral diff showed exactly the 3 flows
-   ([`change-published-only.diff`](examples/video-api/change-published-only.diff)).
-3. **Sync**: a teammate's commit added an unpublish endpoint and made running time optional.
-   [`sync-report.txt`](examples/video-api/sync-report.txt) flagged 1 step out of 43, plus the new
-   route. After the re-check, the diff reads "+ New flow: Unpublish a video; ~ Publish a video:
-   six details are required, running time is optional"
-   ([`diff.txt`](examples/video-api/diff.txt)).
-
-[`trace-publish-video.txt`](examples/video-api/trace-publish-video.txt) shows the 19 functions of
-the publish happy path, from routing to response.
+Open either `index.html` in a browser.
 
 ## Helper CLI
 
@@ -231,21 +298,23 @@ im-a-pm render   [--base base.json] [--no-open]  write .im-a-pm/index.html and o
 im-a-pm view                                     open the current map
 im-a-pm sync     [--since <commit>]              update line refs, mark changed steps, stamp HEAD
 im-a-pm stamp                                    record HEAD as the commit the map describes
-im-a-pm trace    <flow> [<outcome>] [--follow]   functions on a path, in order
+im-a-pm trace    <flow> [<outcome>] [--follow]   functions on a path, in order, across hand-offs
 im-a-pm diff     <base.json> <head.json>         behavioral diff
 im-a-pm stop                                     stop the viewer server
 im-a-pm install | uninstall [--agent …] [--project] [--dir …]
 ```
 
 Run it with `npx github:danilojpferreira/im-a-pm <command>`, or with
-`node <skills-folder>/im-a-pm/scripts/im-a-pm.mjs <command>`.
+`node <skills-folder>/im-a-pm/scripts/im-a-pm.mjs <command>`. The viewer is served on
+`127.0.0.1:4178`, or the next free port, and an open tab reloads itself after each render. Set
+`IM_A_PM_NO_OPEN=1` to never open a browser.
 
 ## Good to know
 
 - **The map describes committed code.** `sync` reads `app.commit..HEAD`. Uncommitted changes are
   reported, not mapped.
 - **It is as accurate as the reading.** That's why every step has a confidence grade, a code
-  link and a "Flag as wrong" button, and why `ask` checks the code before answering.
+  link and a "Flag as wrong" action, and why `ask` checks the code before answering.
 - **Sync sees what the map lists.** A changed function that no step lists is not flagged.
   Changed files the map never references are always reported for review.
 - **Shallow clones**: if the recorded commit isn't in your clone, fetch more history
@@ -254,19 +323,17 @@ Run it with `npx github:danilojpferreira/im-a-pm <command>`, or with
 - **Your code stays with you.** The script runs locally and the viewer is served on
   `127.0.0.1`. The only thing that reads your code is the agent you already use.
 
-## Status
-
-Version 0.3. It has been tested end to end on a Spring Boot REST service (the example above).
-The asynchronous parts are designed, documented and covered by tests, but haven't been through a
-real repository yet: queues, events, sagas and links between flows. The CLI is tested on Linux.
-CI also runs it on macOS. Opening the browser on Windows and WSL is implemented but not tested yet.
-Issues and examples from real codebases are very welcome.
+**Status: version 0.4.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
+Loops, parallel work, batches and unhandled paths are covered by tests and the shop example, but
+haven't yet been mapped from a large real codebase with queues and sagas. The CLI is tested on
+Linux, and CI also runs on macOS. Opening the browser on Windows and WSL is implemented but not
+tested yet. Issues and examples from real codebases are very welcome.
 
 ## Contributing
 
 ```bash
-npm test        # node:test suite: validation, diff, sync against a real git repo, trace, render, install, server
-npm run check   # validate the example map
+npm test        # node:test suite: validation, loops and splits, diff, sync against a real git repo, trace, render, install, server
+npm run check   # validate both example maps
 ```
 
 See [`AGENTS.md`](AGENTS.md) for how the repository is laid out and what to keep in sync.

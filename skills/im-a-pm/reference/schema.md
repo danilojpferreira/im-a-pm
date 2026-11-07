@@ -124,6 +124,51 @@ The function order of a path is the concatenation of the `calls` of its nodes, f
 outcome (`im-a-pm.mjs trace <flow> [<outcome>]`). A function shared by several steps or flows (a
 lookup, a save) is listed in each. That repetition is what lets `sync` find every affected flow.
 
+## Loops, parallel work, and paths the code does not handle
+
+These three describe *how* a flow runs. The viewer draws each one differently: repeats as a
+dashed arrow up the left gutter, parallel work as stacked cards, and unhandled paths as dashed
+red outlines.
+
+**Repeats: `"loop": true` on an edge.** Use it for retries, pagination, polling and "next batch".
+It is the only kind of cycle allowed. It must point back to an earlier step, the one the
+repetition restarts from. Put the condition that ends the loop in a decision ("Any payment
+attempts left?", "Any orders left?"), and the wait or limit in that step's `rule`.
+
+```jsonc
+{ "from": "wait", "to": "charge", "label": "retry", "loop": true }
+```
+
+**Splitting work: `fanout` and `join` on a step.**
+- `fanout` goes on the step that splits the work. `mode` is `parallel` (all at once:
+  `Promise.all`, goroutines, parallel streams), `each` (one after another over a list) or
+  `batch` (in chunks). `over` says what is split, in product words.
+- The step(s) right after a `parallel` or `each` split run once per item. Draw them once; the
+  viewer stacks them.
+- `join` goes on the step that waits for the split work to finish. `mode` is `all`, `any` or
+  `first`. Say in its `rule` what happens when one of them fails.
+
+```jsonc
+{ "id": "split", "type": "action", "label": "Split the order by warehouse",
+  "fanout": { "mode": "parallel", "over": "one shipment per warehouse, all at once" } }
+{ "id": "all-accepted", "type": "decision", "label": "Did every warehouse accept?", "join": { "mode": "all" }, … }
+```
+
+**Paths the code does not handle: `"implicit": true`** on an edge, and on the outcome it leads to.
+Use it when a real case has no code written for it, and something happens by default anyway:
+- an exception that nobody catches (a generic 500, a failed job)
+- a missing `else` or `default`
+- a failure after a side effect, such as charging a card and then failing to save
+
+Say in the outcome's `rule` what happens by default, and add a finding when it matters. These
+are often the most valuable lines on the map for a PM.
+
+```jsonc
+{ "from": "save-order", "to": "charged-no-order", "label": "Save fails", "implicit": true }
+{ "id": "charged-no-order", "type": "outcome", "result": "error", "implicit": true,
+  "label": "Card charged, but no order saved", "rule": "Nothing refunds it …" }
+```
+
 ## Hand-offs between flows (`emits` and `trigger.channel`)
 
 Split flows where execution becomes asynchronous or decoupled: a job put on a queue, a domain
@@ -162,8 +207,10 @@ warns while any remain, and the viewer marks them "re-check".
 - Ids are unique: flow ids across the file, node ids within a flow. Ids are kebab-case.
 - Exactly one `start` node per flow. Every edge points to existing nodes.
 - Every node is reachable from `start`. Every non-outcome node has at least one outgoing edge.
-- `outcome` nodes have no outgoing edges. The graph has no cycles. (Model retries or loops as a
-  single action with a `rule` describing the repetition.)
+- `outcome` nodes have no outgoing edges. The graph has no cycles except through edges marked
+  `"loop": true`, which must point back to an earlier step.
+- `fanout.mode` is `parallel`, `each` or `batch`, with an `over`. `join.mode` is `all`, `any` or
+  `first`.
 - Decisions have 2+ outgoing edges, each with a `label`.
 - `happyPath` names an outcome node. `outcomes` names every other outcome.
 

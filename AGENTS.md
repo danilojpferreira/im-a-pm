@@ -10,6 +10,9 @@ This repository *is* the im-a-pm skill. These notes are for agents and people ch
   instructions into it.
 - Keep the CLI dependency-free and the viewer a single self-contained file. Only Google Fonts may
   be loaded from outside.
-- When you change the `flows.json` format, update `reference/schema.md`, `validate()` and the
-  example in `examples/video-api/` together.
+- When you change the `flows.json` format, update `reference/schema.md`, `validate()` and both
+  examples together. `examples/video-api/` came from a real run. `examples/shop/` is written for
+  the docs: edit `examples/shop/make-map.mjs`, run it, then re-render `index.html`.
+- README screenshots in `docs/` are taken from `examples/shop/index.html` at 2x. Retake them
+  when the viewer's look changes.
 - Before committing, run `npm test` and `npm run check`.

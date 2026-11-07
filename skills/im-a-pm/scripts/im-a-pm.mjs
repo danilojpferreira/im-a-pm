@@ -16,6 +16,8 @@ const RESULTS = new Set(['success', 'rejected', 'error']);
 const CONFIDENCE = new Set(['high', 'medium', 'low']);
 const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const CHANNEL_RE = /^(queue|event|command|schedule|topic|webhook):[A-Za-z0-9_.:/-]+$/;
+const FANOUT_MODES = new Set(['parallel', 'batch', 'each']);
+const JOIN_MODES = new Set(['all', 'any', 'first']);
 const CALL_KINDS = new Set(['call', 'framework', 'validation', 'query', 'config', 'event']);
 
 function readJson(file) {
@@ -93,6 +95,9 @@ export function validate(map) {
         if (!Array.isArray(n.emits)) errors.push(`${w}: emits must be an array`);
         else n.emits.forEach((e, i) => { if (!CHANNEL_RE.test(e.channel || '')) errors.push(`${w}: emits[${i}].channel must look like queue:<name>, event:<name>, command:<name> or schedule:<name>`); });
       }
+      if (n.fanout !== undefined && (!FANOUT_MODES.has(n.fanout?.mode) || !n.fanout?.over)) errors.push(`${w}: fanout needs mode (parallel | batch | each) and over (what is split)`);
+      if (n.join !== undefined && !JOIN_MODES.has(n.join?.mode)) errors.push(`${w}: join.mode must be all | any | first`);
+      if (n.implicit !== undefined && typeof n.implicit !== 'boolean') errors.push(`${w}: implicit must be true or false`);
       if (n.stale) warnings.push(`${w}: needs re-check after code changes (${(n.stale.reasons || []).join('; ')})`);
     }
     if (flow.trigger?.channel !== undefined && !CHANNEL_RE.test(flow.trigger.channel)) errors.push(`${where}: trigger.channel must look like queue:<name>, event:<name>, command:<name> or schedule:<name>`);
@@ -121,14 +126,18 @@ export function validate(map) {
       const visit = (id) => {
         state.set(id, 1);
         for (const e of out.get(id) || []) {
+          if (e.loop) continue; // repetition is declared, not a cycle
           const s = state.get(e.to);
-          if (s === 1) errors.push(`${where}: cycle through "${e.from}" → "${e.to}"`);
+          if (s === 1) errors.push(`${where}: cycle through "${e.from}" → "${e.to}" (mark the edge that repeats with "loop": true)`);
           else if (!s && nodes.has(e.to)) visit(e.to);
         }
         state.set(id, 2);
       };
       visit(starts[0].id);
       for (const id of nodes.keys()) if (!state.has(id)) errors.push(`${where}: "${id}" is not reachable from start`);
+      // A loop edge must go back to a step that leads to it (retry, next page, next batch).
+      const reaches = (from, to) => { const seen = new Set([from]); const st = [from]; while (st.length) { const x = st.pop(); if (x === to) return true; for (const e of out.get(x) || []) if (!e.loop && !seen.has(e.to)) { seen.add(e.to); st.push(e.to); } } return false; };
+      for (const e of flow.edges) if (e.loop && nodes.has(e.from) && nodes.has(e.to) && !reaches(e.to, e.from)) errors.push(`${where}: loop edge "${e.from}" → "${e.to}" must point back to an earlier step`);
     }
 
     const outcomes = flow.nodes.filter((n) => n.type === 'outcome').map((n) => n.id);
@@ -147,8 +156,8 @@ export function validate(map) {
 
 // ---------------------------------------------------------------- diff
 
-const NODE_FIELDS = ['type', 'label', 'rule', 'result', 'response', 'system'];
-const edgeKey = (e) => `${e.from}→${e.to}${e.label ? ` [${e.label}]` : ''}`;
+const NODE_FIELDS = ['type', 'label', 'rule', 'result', 'response', 'system', 'implicit'];
+const edgeKey = (e) => `${e.from}→${e.to}${e.label ? ` [${e.label}]` : ''}${e.loop ? ' (repeats)' : ''}${e.implicit ? ' (not handled in code)' : ''}`;
 
 export function diff(base, head) {
   const bFlows = new Map(base.flows.map((f) => [f.id, f]));
@@ -177,6 +186,7 @@ export function diff(base, head) {
       const fields = {};
       for (const k of NODE_FIELDS) if ((b[k] ?? null) !== (h[k] ?? null)) fields[k] = [b[k] ?? null, h[k] ?? null];
       if (JSON.stringify(b.data ?? null) !== JSON.stringify(h.data ?? null)) fields.data = [b.data ?? null, h.data ?? null];
+      for (const k of ['fanout', 'join']) if (JSON.stringify(b[k] ?? null) !== JSON.stringify(h[k] ?? null)) fields[k] = [b[k] ?? null, h[k] ?? null];
       const em = (n) => (n.emits || []).map((e) => e.channel).sort().join(', ') || null;
       if (em(b) !== em(h)) fields.emits = [em(b), em(h)];
       if (Object.keys(fields).length) d.nodes.changed.push({ id: nid, fields });
@@ -250,14 +260,21 @@ export function render(head, base, { served = false, fragment = false } = {}) {
 export function pathNodes(flow, outcomeId) {
   const out = new Map(flow.nodes.map((n) => [n.id, []]));
   const inn = new Map(flow.nodes.map((n) => [n.id, []]));
-  for (const e of flow.edges) { out.get(e.from)?.push(e.to); inn.get(e.to)?.push(e.from); }
+  for (const e of flow.edges) { if (e.loop) continue; out.get(e.from)?.push(e.to); inn.get(e.to)?.push(e.from); }
   const reach = (from, adj) => { const seen = new Set([from]); const st = [from]; while (st.length) for (const x of adj.get(st.pop()) || []) if (!seen.has(x)) { seen.add(x); st.push(x); } return seen; };
   const fwd = reach('start', out), back = reach(outcomeId, inn);
   const on = new Set([...fwd].filter((x) => back.has(x)));
+  // A path also runs the body of every loop that starts on it (retries, next page, next batch).
+  for (const e of flow.edges) if (e.loop && on.has(e.to)) {
+    const body = reach(e.to, out), toSource = reach(e.from, inn);
+    for (const x of body) if (toSource.has(x)) on.add(x);
+  }
   const indeg = new Map([...on].map((x) => [x, inn.get(x).filter((p) => on.has(p)).length]));
   const order = [], q = [...on].filter((x) => indeg.get(x) === 0);
   while (q.length) { const x = q.shift(); order.push(x); for (const y of out.get(x)) if (on.has(y)) { indeg.set(y, indeg.get(y) - 1); if (!indeg.get(y)) q.push(y); } }
-  return order.map((id) => flow.nodes.find((n) => n.id === id));
+  const byId = (id) => flow.nodes.find((n) => n.id === id);
+  // Outcomes last: when a loop exits to the outcome, the loop body still runs first.
+  return [...order.filter((id) => byId(id).type !== 'outcome'), ...order.filter((id) => byId(id).type === 'outcome')].map(byId);
 }
 
 export function printTrace(map, flowId, outcomeId, follow = false, seen = new Set(), indent = '') {
@@ -269,13 +286,15 @@ export function printTrace(map, flowId, outcomeId, follow = false, seen = new Se
   const handoffs = [];
   let step = 0;
   for (const n of pathNodes(flow, target)) {
-    lines.push(`\n[${n.type}] ${n.label}`);
+    const tags = [n.fanout && `splits ${n.fanout.mode === 'parallel' ? 'in parallel' : n.fanout.mode === 'batch' ? 'into batches' : 'for each'}: ${n.fanout.over}`, n.join && `waits for ${n.join.mode}`, n.implicit && 'not handled in code'].filter(Boolean);
+    lines.push(`\n[${n.type}] ${n.label}${tags.length ? `   (${tags.join('; ')})` : ''}`);
     for (const c of n.calls || []) {
       step++;
       const where = `${c.file}:${c.line}${c.endLine && c.endLine !== c.line ? `-${c.endLine}` : ''}`;
       lines.push(`  ${String(step).padStart(2)}. ${'  '.repeat(c.depth || 0)}${c.fn}${c.kind && c.kind !== 'call' ? ` (${c.kind})` : ''}  ${where}${c.note ? `  — ${c.note}` : ''}`);
     }
     if (!n.calls?.length && n.type !== 'outcome') lines.push('     (no functions recorded)');
+    for (const e of flow.edges.filter((x) => x.loop && x.from === n.id)) lines.push(`     ↺ repeats from "${flow.nodes.find((x) => x.id === e.to)?.label || e.to}"${e.label ? ` (${e.label})` : ''}`);
     for (const e of n.emits || []) {
       const next = map.flows.filter((f) => f.trigger?.channel === e.channel);
       lines.push(`     ↳ ${e.channel} → ${next.length ? next.map((f) => f.title).join(', ') : 'no flow starts from it'}`);

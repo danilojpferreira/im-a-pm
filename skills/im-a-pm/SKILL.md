@@ -89,8 +89,10 @@ Goal: a correct, complete, PM-readable `.im-a-pm/flows.json` for HEAD.
    business rule like any other.
 4. **Keep business decisions, drop technical ones.** Keep a decision when a PM could reasonably
    want it different: eligibility, state and status rules, permissions, limits, required data,
-   pricing, defaults, visibility, what gets counted. Drop null-guards, retries, logging, mapping,
-   and generic "unexpected error → 500" branches.
+   pricing, defaults, visibility, what gets counted. Drop null-guards, logging and mapping. Map
+   retries only when they change what the user or the business sees. A failure path is a
+   technical detail, except when it leaves the customer or the business in a bad state (charged
+   but no order, a job that silently gives up). Keep those as `implicit` paths (step 9).
 5. **Write for a PM.** Phrase decisions as yes/no questions in domain words ("Is the video still a
    draft?"). Phrase actions as verbs ("Count one view"). Put the exact rule in `rule`, in plain
    language with real values. Never use class or method names in `label` or `rule`.
@@ -121,11 +123,18 @@ Goal: a correct, complete, PM-readable `.im-a-pm/flows.json` for HEAD.
    that hands off, and `trigger.channel` on the flow that picks it up (see "Hand-offs" in
    `reference/schema.md`). Every emitted channel must start a flow, so a PM can click from
    checkout through to confirmation.
-9. **Mark the happy path** and name every other outcome in `outcomes`. These names become the
+9. **Show how the flow runs.** These are covered in "Loops, parallel work, and paths the code
+   does not handle" in `reference/schema.md`:
+   - Mark repetition (retries, paging, batches) with a `loop` edge back to where it restarts.
+   - Mark split work with `fanout` and the step that waits for it with `join`.
+   - Mark every real case the code does not handle with `implicit`: uncaught errors, missing
+     defaults, failures after a side effect. Don't skip these. They are often what a PM most
+     needs to see.
+10. **Mark the happy path** and name every other outcome in `outcomes`. These names become the
    alternate paths in the viewer.
-10. **Record findings** a PM would be surprised by: gaps (a state there is no way out of), rules
+11. **Record findings** a PM would be surprised by: gaps (a state there is no way out of), rules
     that contradict docs or comments, open TODOs, asymmetries between similar flows.
-11. **Validate, stamp, render.** Run `validate` and fix every error. Then run `stamp`, which
+12. **Validate, stamp, render.** Run `validate` and fix every error. Then run `stamp`, which
     records HEAD in `app.commit`, and then `render`, which opens the viewer. Tell the person how
     many flows and decisions you mapped, list the findings, give the viewer URL, and suggest
     committing `.im-a-pm/flows.json`.
@@ -152,7 +161,7 @@ Goal: bring the map from `app.commit` up to HEAD by re-checking only what change
    ids only to new concepts. Check the flow's other steps when the change could reroute it (a new
    early return, a new exception).
 3. **Look at every candidate entrypoint and unmapped file.** Map new entrypoints as new flows
-   (build steps 3 to 10). For unmapped files, decide whether they add a rule, wiring (a DI
+   (build steps 3 to 11). For unmapped files, decide whether they add a rule, wiring (a DI
    binding, middleware, config) or a call into a mapped flow. Tests and pure docs usually need
    nothing. If a mapped entrypoint was removed, remove its flow.
 4. **Refresh findings.** Remove the ones the change resolved, and add new ones.

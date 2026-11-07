@@ -1,6 +1,6 @@
 {
   "name": "im-a-pm",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Business-flow maps of a codebase for product managers: every entrypoint as a flowchart of business decisions, with sync, change requests, behavioral diffs and an auto-opening viewer.",
   "author": { "name": "Danilo Pereira" },
   "homepage": "https://github.com/danilojpferreira/im-a-pm",
