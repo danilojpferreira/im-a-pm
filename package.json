@@ -1,13 +1,13 @@
 {
   "name": "im-a-pm",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Agent skill that maps a codebase as business flows for product managers.",
   "type": "module",
-  "bin": { "im-a-pm": "skills/im-a-pm/scripts/im-a-pm.mjs" },
-  "files": ["skills/", "README.md", "LICENSE"],
+  "bin": { "im-a-pm": "plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs" },
+  "files": ["plugins/im-a-pm/skills/", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test test/im-a-pm.test.mjs",
-    "examples": "node examples/shop/make-map.mjs && node skills/im-a-pm/scripts/im-a-pm.mjs render examples/shop/flows.json --base examples/shop/base.json --out examples/shop/index.html && node skills/im-a-pm/scripts/im-a-pm.mjs render examples/video-api/flows.json --base examples/video-api/base.json --out examples/video-api/index.html && node skills/im-a-pm/scripts/im-a-pm.mjs diff examples/video-api/base.json examples/video-api/flows.json > examples/video-api/diff.txt && node skills/im-a-pm/scripts/im-a-pm.mjs trace publish-video --file examples/video-api/flows.json > examples/video-api/trace-publish-video.txt",
+    "examples": "node examples/shop/make-map.mjs && node plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs render examples/shop/flows.json --base examples/shop/base.json --out examples/shop/index.html && node plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs render examples/video-api/flows.json --base examples/video-api/base.json --out examples/video-api/index.html && node plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs diff examples/video-api/base.json examples/video-api/flows.json > examples/video-api/diff.txt && node plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs trace publish-video --file examples/video-api/flows.json > examples/video-api/trace-publish-video.txt",
     "check": "npm run examples && git diff --exit-code --stat -- examples"
   },
   "engines": { "node": ">=18" },

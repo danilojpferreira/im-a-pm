@@ -215,10 +215,11 @@ business rules did this branch change?".
 
 ```bash
 git clone https://github.com/danilojpferreira/im-a-pm
-node im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs install
+node im-a-pm/plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs install
 ```
 
-**By hand.** Copy `skills/im-a-pm` and `skills/imapm` into your agent's skills folder. Keep them
+**By hand.** Copy `plugins/im-a-pm/skills/im-a-pm` and `plugins/im-a-pm/skills/imapm` into your
+agent's skills folder. Keep them
 side by side, because the alias reads `../im-a-pm/SKILL.md`.
 
 **Notes**
@@ -279,7 +280,7 @@ Every step carries:
 Edges can **repeat** (`loop`), steps can **split** and **join** work (`fanout`, `join`), anything
 the code doesn't handle is marked `implicit`, and asynchronous hand-offs link one flow to the next
 (`emits`, `trigger.channel`). The full format is in
-[`skills/im-a-pm/reference/schema.md`](skills/im-a-pm/reference/schema.md).
+[`plugins/im-a-pm/skills/im-a-pm/reference/schema.md`](plugins/im-a-pm/skills/im-a-pm/reference/schema.md).
 
 **Your agent does the reading. A small script does the bookkeeping.** Understanding code needs a
 model, so building and re-checking the map is the agent's job. The skill ships a dependency-free
@@ -314,7 +315,7 @@ Entrypoints across common stacks:
 - monorepos: one map for the whole repository, each flow tagged with its app
 
 The guide the agent follows is
-[`skills/im-a-pm/reference/entrypoints.md`](skills/im-a-pm/reference/entrypoints.md).
+[`plugins/im-a-pm/skills/im-a-pm/reference/entrypoints.md`](plugins/im-a-pm/skills/im-a-pm/reference/entrypoints.md).
 Declarative code is traced as part of the flow, not skipped: annotations and decorators, DI
 containers, validation pipes, exception mappers, ORM query filters and config flags.
 
@@ -363,7 +364,7 @@ Run it with `npx github:danilojpferreira/im-a-pm <command>`, or with
 - **Your code stays with you.** The script runs locally and the viewer is served on
   `127.0.0.1`. The only thing that reads your code is the agent you already use.
 
-**Status: version 0.5.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
+**Status: version 0.6.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
 Loops, parallel work, batches and unhandled paths are covered by tests and the shop example, but
 haven't yet been mapped from a large real codebase with queues and sagas. The same goes for
 frontends and monorepos, so far covered only by the shop example. CI tests the CLI on Linux,

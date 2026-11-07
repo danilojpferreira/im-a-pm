@@ -17,6 +17,15 @@ Functions are never nodes. Instead, each node records **the functions that run f
 (`calls`). A path from trigger to outcome therefore gives the exact function order of that path.
 This is the engineer's view. It is also what lets `sync` tell which steps a code change touches.
 
+## Where it runs
+
+Every command needs a coding agent working inside a git repository on a machine with Node 18+,
+such as Claude Code or Codex. Before any command, run `git rev-parse --show-toplevel`. If it fails,
+or there is no shell to run it in (a chat on claude.ai, for example), do nothing else and tell the
+person, in one or two sentences: im-a-pm reads the code and its git history, so it runs in a coding
+agent opened inside the repository, such as Claude Code, and they can install it there from the
+same plugin.
+
 Everything lives in `.im-a-pm/` at the repository root:
 
 | File | What it is | Commit it? |

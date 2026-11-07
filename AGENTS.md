@@ -5,13 +5,21 @@ This repository *is* the im-a-pm skill. These notes are for agents and people ch
 
 ## Layout
 
-- `skills/im-a-pm/` is the skill: `SKILL.md` (the workflow), `reference/` (schema and entrypoint
-  guide), `scripts/im-a-pm.mjs` (the helper CLI, Node 18+, no dependencies) and
+- `plugins/im-a-pm/` is the plugin: everything a person installs, and nothing else. It holds
+  `.claude-plugin/plugin.json`, the `README.md` shown in Anthropic's directory, and `skills/`.
+  `.claude-plugin/marketplace.json` at the repository root lists it.
+- `plugins/im-a-pm/skills/im-a-pm/` is the skill: `SKILL.md` (the workflow), `reference/` (schema
+  and entrypoint guide), `scripts/im-a-pm.mjs` (the helper CLI, Node 18+, no dependencies) and
   `assets/viewer.html` (the viewer template).
-- `skills/imapm/` is an alias. Keep it a thin pointer to `../im-a-pm/SKILL.md`. Never copy
-  instructions into it. The only text it repeats is the "Commands are …" sentence of its
-  description. `npm test` checks that sentence against `skills/im-a-pm/SKILL.md`, and checks that
-  every command listed there has its own `## /im-a-pm <command>` section.
+- `plugins/im-a-pm/skills/imapm/` is an alias. Keep it a thin pointer to `../im-a-pm/SKILL.md`.
+  Never copy instructions into it. The only text it repeats is the "Commands are …" sentence of
+  its description. `npm test` checks that sentence against `plugins/im-a-pm/skills/im-a-pm/SKILL.md`,
+  and checks that every command listed there has its own `## /im-a-pm <command>` section.
+- `plugins/im-a-pm/README.md` lists everything the plugin runs, writes, serves or fetches. When the
+  CLI or the viewer starts doing something new on the person's machine or over the network, add it
+  there in the same change.
+- Keep the plugin folder free of anything the skill does not run: docs, examples and tests stay
+  outside it.
 - Keep the CLI dependency-free and the viewer a single self-contained file. Only Google Fonts may
   be loaded from outside.
 
@@ -59,7 +67,7 @@ the viewer's look changes. Sizes are in CSS pixels; the files are twice as large
 
 ## Versions
 
-`package.json` and `.claude-plugin/plugin.json` carry the same version, and the README's
+`package.json` and `plugins/im-a-pm/.claude-plugin/plugin.json` carry the same version, and the README's
 "**Status: version X.Y.**" line names its major and minor. Change all three together. `npm test`
 checks them.
 
