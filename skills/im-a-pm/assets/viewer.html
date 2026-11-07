@@ -92,6 +92,12 @@ button, input, textarea { font: inherit; color: inherit; }
 .about { flex: 1 1 auto; min-width: 0; color: var(--muted); }
 .stats { display: flex; gap: 14px; align-items: baseline; flex: none; font-size: var(--step--1); color: var(--muted); }
 .stats b { font-family: var(--font-display); font-size: var(--step-1); color: var(--ink); font-variant-numeric: tabular-nums; }
+/* Links back to the im-a-pm project on GitHub. */
+.gh { display: flex; gap: 6px; flex: none; align-self: center; }
+.gh a { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: var(--step--1); font-weight: 600; color: var(--muted); text-decoration: none; background: var(--surface); }
+.gh a:hover { color: var(--ink); border-color: var(--muted); }
+.gh a.star:hover svg { fill: #d4a017; stroke: #d4a017; }
+.gh svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 /* One-line text that expands on click. */
 .clampbox { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
 .clampbox .clamp-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -772,13 +778,19 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
   }
 
   // ------------------------------------------------------------ header & index
+  // The im-a-pm project itself, for the Star and Report links in the header.
+  const PROJECT = 'https://github.com/danilojpferreira/im-a-pm';
   function drawTop() {
     const decisions = head.flows.reduce((s, f) => s + f.nodes.filter((n) => n.type === 'decision').length, 0);
     const findings = head.flows.reduce((s, f) => s + (f.findings || []).length, 0);
     // One line: name, version, description (click to read it all), counts.
     $('top').innerHTML = `<div class="brand"><h1>${esc(head.app.name)}</h1><span class="eyebrow">${esc(head.app.ref || '')}${head.app.commit ? ' @ ' + esc(head.app.commit.slice(0, 7)) : ''}</span></div>
       ${head.app.summary ? clampHtml('about', 'about', head.app.summary, state.aboutOpen) : '<span class="about"></span>'}
-      <div class="stats"><span><b>${head.flows.length}</b> entrypoints</span><span><b>${decisions}</b> decisions</span><span><b>${findings}</b> findings</span></div>`;
+      <div class="stats"><span><b>${head.flows.length}</b> entrypoints</span><span><b>${decisions}</b> decisions</span><span><b>${findings}</b> findings</span></div>
+      <nav class="gh" aria-label="im-a-pm on GitHub">
+        <a class="star" href="${PROJECT}" target="_blank" rel="noopener" title="Like im-a-pm? Give it a star on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></svg>Star</a>
+        <a href="${PROJECT}/issues/new" target="_blank" rel="noopener" title="Something wrong with im-a-pm? Open an issue on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>Report</a>
+      </nav>`;
     clampable($('about'), () => { state.aboutOpen = !state.aboutOpen; drawTop(); });
     const stale = head.flows.flatMap((f) => f.nodes.filter((n) => n.stale).map((n) => f.title));
     if (stale.length) {
