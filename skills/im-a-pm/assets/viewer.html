@@ -839,7 +839,14 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
     const others = outcomes.filter((o) => o.id !== f.happyPath);
     const chips = [`<button type="button" class="pathbtn" data-p="all" aria-pressed="${state.path === 'all'}">All paths</button>`];
     if (happy) chips.push(`<button type="button" class="pathbtn success" data-p="${esc(happy.id)}" aria-pressed="${state.path === happy.id}"><span class="dot"></span>Happy path: ${esc(happy.label)}</button>`);
-    for (const o of others) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}${o.implicit ? ' implicit' : ''}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}" ${o.implicit ? 'title="Not handled in code"' : ''}><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
+    // Many outcomes make a long row: show the first few (and the selected one) until expanded.
+    const PATHS_LIMIT = 3;
+    const collapsed = others.length > PATHS_LIMIT + 1 && !state.pathsOpen;
+    const visible = collapsed ? others.filter((o, k) => k < PATHS_LIMIT || o.id === state.path) : others;
+    for (const o of visible) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}${o.implicit ? ' implicit' : ''}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}" ${o.implicit ? 'title="Not handled in code"' : ''}><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
+    if (others.length > PATHS_LIMIT + 1) chips.push(collapsed
+      ? `<button type="button" class="linkmore" data-paths="more" title="Show every outcome of this flow">+${others.length - visible.length} more path${others.length - visible.length > 1 ? 's' : ''}</button>`
+      : '<button type="button" class="linkmore" data-paths="less">Show fewer</button>');
     const changes = state.showChanges ? changeSentences(f.id) : [];
     const findings = f.findings || [];
     const notes = [
@@ -854,6 +861,7 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
     $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, b.dataset.gonode.split(','))));
     $('flowhead').querySelectorAll('[data-starts]').forEach((b) => b.addEventListener('click', () => { state.startsOpen = b.dataset.starts === 'more'; drawFlowHead(); }));
     $('flowhead').querySelectorAll('.pathbtn').forEach((b) => b.addEventListener('click', () => { state.path = b.dataset.p; drawFlowHead(); drawCanvas(false); }));
+    $('flowhead').querySelectorAll('[data-paths]').forEach((b) => b.addEventListener('click', () => { state.pathsOpen = b.dataset.paths === 'more'; drawFlowHead(); }));
     $('flowhead').querySelectorAll('.note[data-f]').forEach((b) => b.addEventListener('click', () => { const x = findings[+b.dataset.f]; if (x.nodes?.[0]) { state.node = x.nodes[0]; drawCanvas(false); reveal(state.node); drawInspector(); } }));
   }
 
@@ -983,7 +991,7 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
   // ------------------------------------------------------------ routing
   function select(id, fromHash, highlight) {
     if (!flowOf(id)) id = allFlowIds[0];
-    state.flow = id; state.node = null; state.path = 'all'; state.composer = null; state.startsOpen = false;
+    state.flow = id; state.node = null; state.path = 'all'; state.composer = null; state.startsOpen = false; state.pathsOpen = false;
     state.hl = new Set(highlight || []);
     if (highlight?.length === 1 && highlight[0] !== 'start') state.node = highlight[0];
     if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', `#${id}`);
