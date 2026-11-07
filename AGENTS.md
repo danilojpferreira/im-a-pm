@@ -74,4 +74,5 @@ checks them.
 ## Before committing
 
 Run `npm test` and `npm run check`. Both must pass. CI runs both on Linux with the oldest and the
-newest supported Node, and on macOS with the newest, as listed in `.github/workflows/ci.yml`.
+newest supported Node, and on macOS and Windows with the newest, as listed in
+`.github/workflows/ci.yml`.

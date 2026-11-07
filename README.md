@@ -366,9 +366,9 @@ Run it with `npx github:danilojpferreira/im-a-pm <command>`, or with
 **Status: version 0.5.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
 Loops, parallel work, batches and unhandled paths are covered by tests and the shop example, but
 haven't yet been mapped from a large real codebase with queues and sagas. The same goes for
-frontends and monorepos, so far covered only by the shop example. The CLI is tested on
-Linux, and CI also runs on macOS. Opening the browser on Windows and WSL is implemented but not
-tested yet. Issues and examples from real codebases are very welcome.
+frontends and monorepos, so far covered only by the shop example. CI tests the CLI on Linux,
+macOS and Windows. Opening the browser on Windows and WSL is implemented but not tested yet.
+Issues and examples from real codebases are very welcome.
 
 ## Contributing
 
