@@ -19,4 +19,4 @@ The code in `src/` and `web/` is complete enough to be read and mapped, but it i
 services in `src/lib/services.js` are stubs, and no dependencies are installed. Unlike
 `examples/video-api`, which came from mapping a real repository, this map was written by hand
 for the examples. `make-map.mjs` writes it, looking up every line number in `src/` and `web/`, so the line
-references are real. Run `node examples/shop/make-map.mjs` after changing the code.
+references are real. Run `npm run examples` after changing the code: it rewrites the map and re-renders `index.html`.

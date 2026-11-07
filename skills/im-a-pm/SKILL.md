@@ -140,7 +140,8 @@ Goal: a correct, complete, PM-readable `.im-a-pm/flows.json` for HEAD.
    alternate paths in the viewer.
 11. **Record findings** a PM would be surprised by: gaps (a state there is no way out of), rules
     that contradict docs or comments, open TODOs, asymmetries between similar flows.
-12. **Validate, stamp, render.** Run `validate` and fix every error. Then run `stamp`, which
+12. **Validate, stamp, render.** Run `validate` and fix every error and every warning. If a
+    warning cannot be fixed, tell the person which one and why. Then run `stamp`, which
     records HEAD in `app.commit`, and then `render`, which opens the viewer. Tell the person how
     many flows and decisions you mapped, list the findings, give the viewer URL, and suggest
     committing `.im-a-pm/flows.json`.
@@ -171,7 +172,8 @@ Goal: bring the map from `app.commit` up to HEAD by re-checking only what change
    binding, middleware, config) or a call into a mapped flow. Tests and pure docs usually need
    nothing. If a mapped entrypoint was removed, remove its flow.
 4. **Refresh findings.** Remove the ones the change resolved, and add new ones.
-5. **Validate and render.** `validate` must show no stale warnings. Then `render` with
+5. **Validate and render.** `validate` must show no errors and no warnings, stale ones
+   included. Then `render` with
    `--base` set to the map as it was before the sync: `git show HEAD:.im-a-pm/flows.json >
    .im-a-pm/base.json`, if the map was committed. The open tab reloads with the changes
    highlighted. Summarize the behavioral diff and suggest committing `flows.json`.

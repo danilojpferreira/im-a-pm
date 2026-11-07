@@ -7,7 +7,8 @@
   "files": ["skills/", "README.md", "LICENSE"],
   "scripts": {
     "test": "node --test test/im-a-pm.test.mjs",
-    "check": "node skills/im-a-pm/scripts/im-a-pm.mjs validate examples/video-api/flows.json && node skills/im-a-pm/scripts/im-a-pm.mjs validate examples/shop/flows.json"
+    "examples": "node examples/shop/make-map.mjs && node skills/im-a-pm/scripts/im-a-pm.mjs render examples/shop/flows.json --base examples/shop/base.json --out examples/shop/index.html && node skills/im-a-pm/scripts/im-a-pm.mjs render examples/video-api/flows.json --base examples/video-api/base.json --out examples/video-api/index.html && node skills/im-a-pm/scripts/im-a-pm.mjs diff examples/video-api/base.json examples/video-api/flows.json > examples/video-api/diff.txt && node skills/im-a-pm/scripts/im-a-pm.mjs trace publish-video --file examples/video-api/flows.json > examples/video-api/trace-publish-video.txt",
+    "check": "npm run examples && git diff --exit-code --stat -- examples"
   },
   "engines": { "node": ">=18" },
   "keywords": ["agent-skills", "claude-code", "codex", "copilot", "cursor", "gemini-cli", "product-management", "business-rules"],

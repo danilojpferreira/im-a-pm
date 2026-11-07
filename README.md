@@ -374,7 +374,7 @@ tested yet. Issues and examples from real codebases are very welcome.
 
 ```bash
 npm test        # node:test suite: validation, loops and splits, diff, sync against a real git repo, trace, render, install, server
-npm run check   # validate both example maps
+npm run check   # regenerate the examples and fail if anything in them changed
 ```
 
 See [`AGENTS.md`](AGENTS.md) for how the repository is laid out and what to keep in sync.

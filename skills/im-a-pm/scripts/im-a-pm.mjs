@@ -16,7 +16,12 @@ const RESULTS = new Set(['success', 'rejected', 'error']);
 const CONFIDENCE = new Set(['high', 'medium', 'low']);
 const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
 const CHANNEL_RE = /^(queue|event|command|schedule|topic|webhook|graphql|rpc):[A-Za-z0-9_.:/-]+$|^http:(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) \/\S*$/;
-const CHANNEL_HINT = 'queue:<name>, event:<name>, command:<name>, schedule:<name>, graphql:<Type.field> or http:<METHOD> /path';
+/** Every channel shape `CHANNEL_RE` accepts, as shown in validation errors. */
+const CHANNEL_HINT = 'queue:<name>, event:<name>, command:<name>, schedule:<name>, topic:<name>, webhook:<name>, rpc:<name>, graphql:<Type.field> or http:<METHOD> /path';
+/** What can start a flow, as listed for `trigger.kind` in reference/schema.md. */
+const TRIGGER_KINDS = new Set(['http', 'graphql', 'event', 'job', 'cron', 'cli', 'webhook', 'saga', 'page', 'ui', 'other']);
+/** The kinds of finding a flow can record, as listed in reference/schema.md. */
+const FINDING_KINDS = new Set(['gap', 'surprise', 'inconsistency', 'todo', 'risk']);
 
 // A screen that calls the API hands off to the flow behind that route. Routes are compared with
 // their parameters normalized, so /orders/{id}, /orders/:id and /orders/[id] are the same.
@@ -69,6 +74,10 @@ function parseArgs(argv) {
 
 // ---------------------------------------------------------------- validate
 
+/**
+ * Checks a map against reference/schema.md. Errors make the map unusable (render refuses it);
+ * warnings point at missing or unknown details that the map still works without.
+ */
 export function validate(map) {
   const errors = [];
   const warnings = [];
@@ -98,6 +107,8 @@ export function validate(map) {
       if (n.type === 'decision' && !n.rule) errors.push(`${w}: decisions need a rule`);
       if (n.type === 'outcome' && !RESULTS.has(n.result)) errors.push(`${w}: outcome.result must be success | rejected | error`);
       if (n.type === 'data' && !['read', 'write', 'delete'].includes(n.data?.op)) errors.push(`${w}: data.op must be read | write | delete`);
+      if (n.type === 'data' && !n.data?.entity) warnings.push(`${w}: data.entity should name what is saved or read`);
+      if (n.type === 'external' && !n.system) warnings.push(`${w}: external steps should name the outside system in "system"`);
       if (n.type !== 'start') {
         if (!Array.isArray(n.anchors) || n.anchors.length === 0) warnings.push(`${w}: no code anchor`);
         if (!CONFIDENCE.has(n.confidence)) warnings.push(`${w}: confidence should be high | medium | low`);
@@ -121,6 +132,11 @@ export function validate(map) {
       if (n.stale) warnings.push(`${w}: needs re-check after code changes (${(n.stale.reasons || []).join('; ')})`);
     }
     if (flow.trigger?.channel !== undefined && !CHANNEL_RE.test(flow.trigger.channel)) errors.push(`${where}: trigger.channel must look like ${CHANNEL_HINT}`);
+    if (flow.trigger && !TRIGGER_KINDS.has(flow.trigger.kind)) warnings.push(`${where}: trigger.kind should be one of ${[...TRIGGER_KINDS].join(' | ')}`);
+    (flow.findings || []).forEach((x, i) => {
+      if (!FINDING_KINDS.has(x.kind)) warnings.push(`${where}: findings[${i}].kind should be one of ${[...FINDING_KINDS].join(' | ')}`);
+      for (const id of x.nodes || []) if (!nodes.has(id)) warnings.push(`${where}: findings[${i}] points at unknown node "${id}"`);
+    });
     if (flow.surface !== undefined && (typeof flow.surface !== 'string' || !flow.surface.trim())) errors.push(`${where}: surface must be a name such as web, mobile or api`);
     const starts = flow.nodes.filter((n) => n.type === 'start');
     if (starts.length !== 1) errors.push(`${where}: needs exactly one start node (has ${starts.length})`);
@@ -141,13 +157,12 @@ export function validate(map) {
       }
     }
 
-    // reachability + cycles
     if (starts.length === 1) {
       const state = new Map();
       const visit = (id) => {
         state.set(id, 1);
         for (const e of out.get(id) || []) {
-          if (e.loop) continue; // repetition is declared, not a cycle
+          if (e.loop) continue;
           const s = state.get(e.to);
           if (s === 1) errors.push(`${where}: cycle through "${e.from}" → "${e.to}" (mark the edge that repeats with "loop": true)`);
           else if (!s && nodes.has(e.to)) visit(e.to);
@@ -156,7 +171,6 @@ export function validate(map) {
       };
       visit(starts[0].id);
       for (const id of nodes.keys()) if (!state.has(id)) errors.push(`${where}: "${id}" is not reachable from start`);
-      // A loop edge must go back to a step that leads to it (retry, next page, next batch).
       const reaches = (from, to) => { const seen = new Set([from]); const st = [from]; while (st.length) { const x = st.pop(); if (x === to) return true; for (const e of out.get(x) || []) if (!e.loop && !seen.has(e.to)) { seen.add(e.to); st.push(e.to); } } return false; };
       for (const e of flow.edges) if (e.loop && nodes.has(e.from) && nodes.has(e.to) && !reaches(e.to, e.from)) errors.push(`${where}: loop edge "${e.from}" → "${e.to}" must point back to an earlier step`);
     }
@@ -167,7 +181,6 @@ export function validate(map) {
       if (o !== flow.happyPath && !flow.outcomes?.[o]) warnings.push(`${where}: outcome "${o}" has no name in "outcomes"`);
     }
   }
-  // Hand-offs between flows: every emitted channel should start some flow.
   const consumers = new Set((map.flows || []).map(channelOf).filter(Boolean));
   for (const f of map.flows || []) for (const n of f.nodes || []) for (const e of n.emits || []) {
     if (e.channel && !consumers.has(normalizeChannel(e.channel))) warnings.push(`flow "${f.id}" node "${n.id}": emits ${e.channel} but no flow starts from it${e.channel.startsWith('http:') ? ' (if this API is not in the repository, make the step an external call instead)' : ''}`);
@@ -277,16 +290,18 @@ export function render(head, base, { served = false, fragment = false } = {}) {
 
 // ---------------------------------------------------------------- trace
 
-// Nodes on any route from start to `outcomeId`, in execution (topological) order.
+/**
+ * Returns the nodes on any route from the start node to `outcomeId`, in execution order, with
+ * outcomes last. A loop's steps are included when the outcome is reached by leaving that loop
+ * (a batch loop that ends, a retry that gives up), not when the path only passes the loop's start.
+ */
 export function pathNodes(flow, outcomeId) {
   const out = new Map(flow.nodes.map((n) => [n.id, []]));
   const inn = new Map(flow.nodes.map((n) => [n.id, []]));
   for (const e of flow.edges) { if (e.loop) continue; out.get(e.from)?.push(e.to); inn.get(e.to)?.push(e.from); }
   const reach = (from, adj) => { const seen = new Set([from]); const st = [from]; while (st.length) for (const x of adj.get(st.pop()) || []) if (!seen.has(x)) { seen.add(x); st.push(x); } return seen; };
-  const fwd = reach('start', out), back = reach(outcomeId, inn);
+  const fwd = reach(flow.nodes.find((n) => n.type === 'start')?.id, out), back = reach(outcomeId, inn);
   const on = new Set([...fwd].filter((x) => back.has(x)));
-  // A path runs a loop's steps when it leaves through the loop: a batch loop ("any left? no →
-  // done") or a retry that gives up. A happy path that only passes the loop's start does not.
   for (const e of flow.edges) if (e.loop && on.has(e.to)) {
     const body = reach(e.to, out), toSource = reach(e.from, inn);
     const inBody = [...body].filter((x) => toSource.has(x));
@@ -296,7 +311,6 @@ export function pathNodes(flow, outcomeId) {
   const order = [], q = [...on].filter((x) => indeg.get(x) === 0);
   while (q.length) { const x = q.shift(); order.push(x); for (const y of out.get(x)) if (on.has(y)) { indeg.set(y, indeg.get(y) - 1); if (!indeg.get(y)) q.push(y); } }
   const byId = (id) => flow.nodes.find((n) => n.id === id);
-  // Outcomes last: when a loop exits to the outcome, the loop body still runs first.
   return [...order.filter((id) => byId(id).type !== 'outcome'), ...order.filter((id) => byId(id).type === 'outcome')].map(byId);
 }
 

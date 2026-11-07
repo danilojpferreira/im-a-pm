@@ -273,3 +273,46 @@ test('the server renders the map and reports a new version after a render', asyn
     server.close();
   }
 });
+
+test('details the schema asks for are warnings, never errors', () => {
+  const m = miniMap();
+  const f = m.flows[0];
+  f.trigger.kind = 'carrier-pigeon';
+  f.nodes.splice(3, 0, { id: 'save', type: 'data', label: 'Save the order', data: { op: 'write' }, anchors: [{ file: 'src/app.js', line: 6 }], confidence: 'high', calls: [] });
+  f.edges = f.edges.map((e) => (e.from === 'queue-invoice' ? { ...e, to: 'save' } : e)).concat({ from: 'save', to: 'done' });
+  delete m.flows[1].nodes[1].system;
+  f.findings = [{ kind: 'rumour', text: 'x', nodes: ['nowhere'] }];
+  const { errors, warnings } = validate(m);
+  assert.deepEqual(errors, []);
+  const all = warnings.join('\n');
+  for (const needle of ['trigger.kind should be one of', 'data.entity should name', 'name the outside system', 'findings[0].kind should be one of', 'unknown node "nowhere"']) assert.ok(all.includes(needle), needle);
+});
+
+test('the start node is found by its type, whatever its id', () => {
+  const m = miniMap();
+  const f = m.flows[0];
+  f.nodes[0].id = 'begin';
+  f.edges[0].from = 'begin';
+  assert.deepEqual(validate(m).errors, []);
+  assert.deepEqual(pathNodes(f, 'done').map((n) => n.id), ['begin', 'in-stock', 'queue-invoice', 'done']);
+  assert.ok(printTrace(m, 'checkout').includes('checkStock'));
+});
+
+test('the version is the same in package.json, the plugin manifest and the README', () => {
+  const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+  const version = JSON.parse(read('package.json')).version;
+  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, version, 'bump .claude-plugin/plugin.json with package.json');
+  const status = read('README.md').match(/\*\*Status: version (\d+\.\d+)\.\*\*/);
+  assert.ok(status, 'README.md needs its "**Status: version X.Y.**" line');
+  assert.equal(status[1], version.split('.').slice(0, 2).join('.'), 'update the README status line to the new version');
+});
+
+test('the alias and the skill list the same commands, and every command has its section', () => {
+  const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
+  const skill = read('skills/im-a-pm/SKILL.md'), alias = read('skills/imapm/SKILL.md');
+  const sentence = (md) => md.match(/^description: .*?(Commands are .*?\.)/m)[1];
+  assert.equal(sentence(alias), sentence(skill).replaceAll('/im-a-pm', '/imapm'), 'copy the command sentence of skills/im-a-pm/SKILL.md into the alias');
+  const listed = sentence(skill).replace(/^Commands are \/im-a-pm /, '').split(/,\s*(?:and\s+)?/).map((c) => c.split(' ')[0]);
+  const sections = [...skill.matchAll(/^## \/im-a-pm (\w+)/gm)].map((x) => x[1]);
+  assert.deepEqual(listed, sections, 'every command in the description needs a "## /im-a-pm <command>" section, and the reverse');
+});
