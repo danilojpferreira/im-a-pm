@@ -59,6 +59,47 @@ test('the example map is valid', () => {
   assert.deepEqual(warnings, []);
 });
 
+test('the shop example is valid and its diff shows the free-shipping change', () => {
+  const shop = (f) => JSON.parse(fs.readFileSync(path.join(ROOT, 'examples/shop', f), 'utf8'));
+  for (const f of ['flows.json', 'base.json']) assert.deepEqual(validate(shop(f)).errors, [], f);
+  const d = diff(shop('base.json'), shop('flows.json'));
+  assert.deepEqual(d.added, ['invoice-nightly']);
+  assert.deepEqual(d.changed['place-order'].nodes.added.sort(), ['free-shipping', 'no-fee']);
+  assert.ok(d.changed['place-order'].nodes.changed.some((c) => c.id === 'add-fee' && c.fields.rule));
+});
+
+test('loops: only declared loop edges may close a cycle, and they must point back', () => {
+  const m = miniMap();
+  const f = m.flows[0];
+  f.nodes.splice(2, 0, { id: 'retry', type: 'decision', label: 'Try again?', rule: 'Up to 3 times.', anchors: [{ file: 'src/app.js', line: 3 }], confidence: 'high', calls: [] });
+  f.edges = f.edges.filter((e) => !(e.from === 'in-stock' && e.to === 'sold-out'));
+  f.edges.push({ from: 'in-stock', to: 'retry', label: 'No' }, { from: 'retry', to: 'sold-out', label: 'No' }, { from: 'retry', to: 'in-stock', label: 'Yes', loop: true });
+  assert.deepEqual(validate(m).errors, []);
+  // The loop body runs on the path to the outcome it exits to.
+  assert.deepEqual(pathNodes(f, 'sold-out').map((n) => n.id), ['start', 'in-stock', 'retry', 'sold-out']);
+  // Without the loop flag it is an undeclared cycle.
+  delete f.edges.at(-1).loop;
+  assert.ok(validate(m).errors.some((e) => e.includes('cycle')));
+  // A "loop" that points forward is not a loop.
+  f.edges.at(-1).loop = true;
+  f.edges.push({ from: 'start', to: 'queue-invoice', label: 'skip', loop: true });
+  assert.ok(validate(m).errors.some((e) => e.includes('must point back to an earlier step')));
+});
+
+test('fanout, join and implicit are checked', () => {
+  const m = miniMap();
+  const n = m.flows[0].nodes[2];
+  n.fanout = { mode: 'parallel', over: 'each warehouse' };
+  m.flows[0].nodes[3].join = { mode: 'all' };
+  m.flows[0].edges.push({ from: 'in-stock', to: 'sold-out', label: 'Times out', implicit: true });
+  assert.deepEqual(validate(m).errors, []);
+  n.fanout = { mode: 'sideways' };
+  m.flows[0].nodes[3].join = { mode: 'most' };
+  m.flows[0].nodes[4].implicit = 'yes';
+  const errs = validate(m).errors.join('\n');
+  for (const needle of ['fanout needs mode', 'join.mode', 'implicit must be true or false']) assert.ok(errs.includes(needle), needle);
+});
+
 test('validate catches structural mistakes', () => {
   const m = miniMap();
   const f = m.flows[0];

@@ -26,6 +26,8 @@
   --data-bg: #e3f0f6;     --data-line: #3c84a6;
   --external-bg: #f1e9f6; --external-line: #8a64a8;
   --start-bg: #1b2628;    --start-ink: #f3f5f2;
+  --loop: #9a3384;        --implicit-stripe: rgba(185, 87, 58, 0.10);
+  --focus: #2459c9;
   --ok-bg: #e2f2e4;       --ok-line: #3a8a4c;
   --rej-bg: #fbe6df;      --rej-line: #b9573a;
   --err-bg: #eceeee;      --err-line: #7d8788;
@@ -48,6 +50,8 @@
   --data-bg: #17303b;     --data-line: #63aed1;
   --external-bg: #2d2238; --external-line: #b48ed2;
   --start-bg: #e2e8e5;    --start-ink: #111718;
+  --loop: #e27fcf;        --implicit-stripe: rgba(224, 133, 102, 0.14);
+  --focus: #79a6ff;
   --ok-bg: #183222;       --ok-line: #63bb78;
   --rej-bg: #3b2119;      --rej-line: #e08566;
   --err-bg: #232b2c;      --err-line: #9aa6a7;
@@ -62,6 +66,8 @@
   --data-bg: #17303b;     --data-line: #63aed1;
   --external-bg: #2d2238; --external-line: #b48ed2;
   --start-bg: #e2e8e5;    --start-ink: #111718;
+  --loop: #e27fcf;        --implicit-stripe: rgba(224, 133, 102, 0.14);
+  --focus: #79a6ff;
   --ok-bg: #183222;       --ok-line: #63bb78;
   --rej-bg: #3b2119;      --rej-line: #e08566;
   --err-bg: #232b2c;      --err-line: #9aa6a7;
@@ -167,7 +173,7 @@ details.collapse > summary { cursor: pointer; color: var(--muted); font-weight: 
 .node.outcome.success { background: var(--ok-bg); border-color: var(--ok-line); }
 .node.outcome.rejected { background: var(--rej-bg); border-color: var(--rej-line); }
 .node.outcome.error { background: var(--err-bg); border-color: var(--err-line); }
-.node.sel { box-shadow: 0 0 0 3px var(--accent); }
+.node.sel { box-shadow: 0 0 0 3px var(--focus); }
 .node.hl { box-shadow: 0 0 0 4px var(--accent), 0 0 0 9px var(--accent-soft); }
 .node .handoff { font-size: 11px; font-weight: 600; color: var(--external-line); }
 .links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -202,6 +208,29 @@ g.dim { opacity: .18; }
 .arrow-happy { fill: var(--accent); }
 .arrow-add { fill: var(--add); }
 .arrow-del { fill: var(--del); }
+.arrow-loop { fill: var(--loop); }
+.arrow-focus { fill: var(--focus); }
+.edge.focus { stroke: var(--focus); stroke-width: 3; }
+.edge.focus.implicit, .edge.focus.loop, .edge.focus.par { stroke: var(--focus); stroke-width: 2.5; }
+g.e.faded, g.elabel.faded { opacity: .3; }
+.elabel.focus rect { stroke: var(--focus); stroke-width: 1.5; }
+.elabel.focus text { fill: var(--focus); }
+.arrow-imp { fill: var(--rej-line); }
+.edge.loop { stroke: var(--loop); stroke-width: 2; stroke-dasharray: 7 4; }
+.edge.par { stroke: var(--external-line); stroke-width: 3; }
+.edge.implicit { stroke: var(--rej-line); stroke-dasharray: 3 4; stroke-width: 1.8; }
+.elabel.loop rect { stroke: var(--loop); }
+.elabel.loop text { fill: var(--loop); }
+.elabel.implicit rect { stroke: var(--rej-line); stroke-dasharray: 3 3; }
+.node.implicit { border-style: dashed; background-image: repeating-linear-gradient(135deg, transparent 0 8px, var(--implicit-stripe) 8px 10px); }
+.node.stacked { box-shadow: 4px 4px 0 -1.5px var(--surface), 4px 4px 0 0 var(--external-line), 8px 8px 0 -1.5px var(--surface), 8px 8px 0 0 var(--external-line); }
+.node.stacked.sel { box-shadow: 0 0 0 3px var(--focus), 4px 4px 0 -1.5px var(--surface), 4px 4px 0 0 var(--external-line), 8px 8px 0 -1.5px var(--surface), 8px 8px 0 0 var(--external-line); }
+.node .flowtag { font-size: 11px; font-weight: 600; color: var(--external-line); }
+.node .flowtag.join { color: var(--loop); }
+.dtag.implicit { background: var(--rej-line); }
+.edge.loop.focus, .edge.implicit.focus, .edge.par.focus { stroke: var(--focus); }
+.elabel.loop.focus rect { stroke: var(--focus); }
+.elabel.loop.focus text { fill: var(--focus); }
 
 /* inspector */
 .inspector { overflow-y: auto; padding: 16px; gap: 14px; }
@@ -220,6 +249,37 @@ g.dim { opacity: .18; }
 .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
 .btn[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
 .composer { display: flex; flex-direction: column; gap: 8px; }
+.act { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin-block: 2px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.act-tile { display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; align-items: start; text-align: left; width: 100%; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--surface); cursor: pointer; }
+.act-tile:hover { border-color: var(--accent); }
+.act-tile .ic, .act-head .ic { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); font-size: 17px; font-weight: 700; }
+.act-tile .tx { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.act-tile b { font-size: var(--step-0); }
+.act-tile small, .act-head small { color: var(--muted); font-size: 0.75rem; line-height: 1.4; }
+.act-tile.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+.act-tile.primary .ic { background: var(--surface); color: var(--accent); }
+.act-tile.primary small { color: var(--surface); opacity: .85; }
+.act-tile.warn .ic { background: var(--rej-bg); color: var(--rej-line); }
+.act-tile.warn:hover { border-color: var(--rej-line); }
+.act.open { background: var(--surface); border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.act.open.flag { border-color: var(--rej-line); box-shadow: 0 0 0 3px var(--rej-bg); }
+.act-head { display: grid; grid-template-columns: 34px minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.act-head div { display: flex; flex-direction: column; min-width: 0; }
+.act.flag .act-head .ic { background: var(--rej-bg); color: var(--rej-line); }
+.act label { font-weight: 600; font-size: var(--step--1); }
+.act textarea { width: 100%; min-height: 84px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); resize: vertical; }
+.act .current { font-size: var(--step--1); padding: 8px 10px; border-left: 3px solid var(--decision-line); background: var(--bg); border-radius: 0 6px 6px 0; display: flex; flex-direction: column; gap: 2px; }
+.ideas { display: flex; flex-wrap: wrap; gap: 6px; }
+.idea { border: 1px dashed var(--line); background: var(--bg); border-radius: 999px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; }
+.idea:hover { border-color: var(--accent); }
+.act .next { font-size: 0.75rem; color: var(--muted); display: flex; flex-direction: column; gap: 2px; }
+.act .next b { color: var(--ink); font-size: 0.68rem; letter-spacing: .06em; text-transform: uppercase; }
+.btn.big { padding: 9px 14px; font-size: var(--step-0); }
+.linkish { border: 0; background: none; color: var(--muted); cursor: pointer; text-decoration: underline; font-size: var(--step--1); }
+.implicitbox { background: var(--rej-bg); border: 1.5px dashed var(--rej-line); border-radius: 6px; padding: 8px 10px; font-size: var(--step--1); }
+.implicitbox b { display: block; font-size: 0.68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--rej-line); }
+.pathbtn.implicit { border-style: dashed; }
+.small { font-size: var(--step--1); }
 .composer textarea { width: 100%; min-height: 84px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); resize: vertical; }
 .cmd { font-family: var(--font-mono); font-size: 0.72rem; padding: 8px 10px; background: var(--bg); border: 1px dashed var(--line); border-radius: 6px; overflow-wrap: anywhere; user-select: all; }
 .toast { font-size: var(--step--1); color: var(--accent); font-weight: 600; min-height: 1.2em; }
@@ -283,6 +343,9 @@ g.dim { opacity: .18; }
         <span><i style="background:var(--external-bg);border-color:var(--external-line)"></i>Outside system</span>
         <span><i style="background:var(--ok-bg);border-color:var(--ok-line)"></i>Success</span>
         <span><i style="background:var(--rej-bg);border-color:var(--rej-line)"></i>Rejected</span>
+        <span><b style="color:var(--loop)">↺</b> Repeats</span>
+        <span><b style="color:var(--external-line)">⇉</b> In parallel</span>
+        <span><i style="border-style:dashed;border-color:var(--rej-line)"></i>Not handled in code</span>
       </div>
       <div class="zoom">
         <button type="button" id="zin" aria-label="Zoom in">+</button>
@@ -306,9 +369,13 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const TYPE_NAMES = { start: 'Trigger', decision: 'Decision', action: 'Action', data: 'Data', external: 'Outside system', outcome: 'Outcome' };
-  const NODE_W = 236, GAP_X = 56, GAP_Y = 54, PAD = 40;
+  const NODE_W = 236, GAP_X = 56, GAP_Y = 54, PAD = 40, STACK = 8;
+  const FANOUT_ICON = { parallel: '⇉', batch: '▤', each: '↻' };
+  const FANOUT_TEXT = { parallel: 'in parallel', batch: 'in batches', each: 'for each' };
+  const JOIN_TEXT = { all: 'all of them', any: 'any one', first: 'the first' };
 
   const state = { flow: null, node: null, path: 'all', showChanges: !!diff, composer: null, q: '', hl: new Set() };
+  let aiAsk = null; // set when the page can ask Claude
   const consumers = new Map(), emitters = new Map();
   for (const f of head.flows) {
     if (f.trigger?.channel) (consumers.get(f.trigger.channel) || consumers.set(f.trigger.channel, []).get(f.trigger.channel)).push(f);
@@ -353,13 +420,16 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     return { flow: hf, nodes, edges };
   }
 
-  function onPath(g, outcomeId) {
+  function onPath(g, outcomeId, withLoops = true) {
     const out = new Map(g.nodes.map((n) => [n.id, []]));
     const inn = new Map(g.nodes.map((n) => [n.id, []]));
-    for (const e of g.edges) { if (e._d === 'removed') continue; out.get(e.from)?.push(e.to); inn.get(e.to)?.push(e.from); }
+    for (const e of g.edges) { if (e._d === 'removed' || e.loop) continue; out.get(e.from)?.push(e.to); inn.get(e.to)?.push(e.from); }
     const walk = (startId, adj) => { const seen = new Set([startId]); const st = [startId]; while (st.length) for (const x of adj.get(st.pop()) || []) if (!seen.has(x)) { seen.add(x); st.push(x); } return seen; };
     const fwd = walk('start', out), back = walk(outcomeId, inn);
-    return new Set([...fwd].filter((x) => back.has(x)));
+    const on = new Set([...fwd].filter((x) => back.has(x)));
+    // include the body of loops that start on this path
+    if (withLoops) for (const e of g.edges) if (e.loop && e._d !== 'removed' && on.has(e.to)) { const body = walk(e.to, out), toSrc = walk(e.from, inn); for (const x of body) if (toSrc.has(x)) on.add(x); }
+    return on;
   }
 
   // ------------------------------------------------------------ layout
@@ -369,25 +439,42 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
 
   function nodeHtml(n, flow) {
     const findings = (flow.findings || []).filter((f) => (f.nodes || []).includes(n.id)).length;
-    const cls = ['node', n.type, n.type === 'outcome' ? n.result : '', n._d ? `d-${n._d}` : '', state.node === n.id ? 'sel' : '', state.hl.has(n.id) ? 'hl' : ''].join(' ');
+    const cls = ['node', n.type, n.type === 'outcome' ? n.result : '', n._d ? `d-${n._d}` : '', state.node === n.id ? 'sel' : '', state.hl.has(n.id) ? 'hl' : '', n.implicit ? 'implicit' : '', n._stacked ? 'stacked' : ''].join(' ');
     const sub = n.type === 'outcome' && n.response ? `<span class="mono" style="font-size:11px;opacity:.8">${esc(n.response)}</span>` : n.type === 'external' && n.system ? `<span style="font-size:11px;opacity:.8">${esc(n.system)}</span>` : '';
-    const ty = n.type === 'start' ? '' : `<div class="ty"><span>${TYPE_NAMES[n.type]}${n.type === 'data' && n.data ? ` · ${esc(n.data.op)}` : ''}</span>${n._d ? `<span class="dtag ${n._d}">${n._d === 'added' ? 'new' : n._d}</span>` : n.stale ? '<span class="dtag stale">re-check</span>' : findings ? '<span class="flagdot">● finding</span>' : ''}</div>`;
+    const ty = n.type === 'start' ? '' : `<div class="ty"><span>${TYPE_NAMES[n.type]}${n.type === 'data' && n.data ? ` · ${esc(n.data.op)}` : ''}</span>${n._d ? `<span class="dtag ${n._d}">${n._d === 'added' ? 'new' : n._d}</span>` : n.stale ? '<span class="dtag stale">re-check</span>' : n.implicit ? '<span class="dtag implicit">not in code</span>' : findings ? '<span class="flagdot">● finding</span>' : ''}</div>`;
+    const flowTag = n.fanout ? `<div class="flowtag fan">${FANOUT_ICON[n.fanout.mode] || '⇉'} ${esc(FANOUT_TEXT[n.fanout.mode] || n.fanout.mode)}: ${esc(n.fanout.over)}</div>`
+      : n.join ? `<div class="flowtag join">⇶ waits for ${esc(JOIN_TEXT[n.join.mode] || n.join.mode)}</div>` : '';
     const nx = nextFlows(n);
     const ho = nx.length ? `<div class="handoff">↳ continues in ${nx.map((f) => esc(f.title)).join(', ')}</div>` : (n.emits || []).length ? `<div class="handoff">↳ ${n.emits.map((e) => esc(e.channel)).join(', ')}</div>` : '';
-    return `<div class="${cls}" xmlns="http://www.w3.org/1999/xhtml">${ty}<div class="lb">${esc(n.label)}</div>${sub}${ho}</div>`;
+    return `<div class="${cls}" xmlns="http://www.w3.org/1999/xhtml">${ty}<div class="lb">${esc(n.label)}</div>${sub}${flowTag}${ho}</div>`;
   }
 
   function layout(g) {
     const ids = g.nodes.map((n) => n.id);
     const out = new Map(ids.map((i) => [i, []])), indeg = new Map(ids.map((i) => [i, 0])), parents = new Map(ids.map((i) => [i, []]));
-    for (const e of g.edges) { if (!out.has(e.from) || !out.has(e.to)) continue; out.get(e.from).push(e.to); indeg.set(e.to, indeg.get(e.to) + 1); parents.get(e.to).push(e.from); }
+    for (const e of g.edges) { if (e.loop || !out.has(e.from) || !out.has(e.to)) continue; out.get(e.from).push(e.to); indeg.set(e.to, indeg.get(e.to) + 1); parents.get(e.to).push(e.from); }
     const layer = new Map(); const q = ids.filter((i) => indeg.get(i) === 0); q.forEach((i) => layer.set(i, 0));
     const deg = new Map(indeg); const order = [];
     while (q.length) { const x = q.shift(); order.push(x); for (const y of out.get(x)) { layer.set(y, Math.max(layer.get(y) ?? 0, layer.get(x) + 1)); deg.set(y, deg.get(y) - 1); if (deg.get(y) === 0) q.push(y); } }
     for (const i of ids) if (!layer.has(i)) layer.set(i, 0);
 
-    const happy = onPath(g, g.flow.happyPath);
     const byId = new Map(g.nodes.map((n) => [n.id, n]));
+    // The main column is the happy path. When the happy outcome is the exit of a loop (a batch
+    // loop: "any left? no → done"), the loop body is the main work and the outcome becomes a side exit.
+    const happy = onPath(g, g.flow.happyPath, false);
+    let happyExit = null;
+    const reachOut = (from) => { const seen = new Set([from]); const st = [from]; while (st.length) for (const y of out.get(st.pop()) || []) if (!seen.has(y)) { seen.add(y); st.push(y); } return seen; };
+    const reachIn = (from) => { const seen = new Set([from]); const st = [from]; while (st.length) for (const y of parents.get(st.pop()) || []) if (!seen.has(y)) { seen.add(y); st.push(y); } return seen; };
+    for (const e of g.edges) if (e.loop && happy.has(e.to) && out.has(e.from)) {
+      const body = [...reachOut(e.to)].filter((x) => reachIn(e.from).has(x));
+      if ((parents.get(g.flow.happyPath) || []).some((p) => body.includes(p))) { body.forEach((x) => happy.add(x)); happy.delete(g.flow.happyPath); happyExit = g.flow.happyPath; }
+    }
+    // Steps inside a parallel or for-each split (up to its join) are drawn as a stack.
+    for (const n of g.nodes) n._stacked = false;
+    for (const n of g.nodes) if (n.fanout && n.fanout.mode !== 'batch') {
+      const st = [...(out.get(n.id) || [])];
+      while (st.length) { const x = st.pop(); const m = byId.get(x); if (!m || m._stacked || m.join || m.type === 'outcome') continue; m._stacked = true; st.push(...(out.get(x) || [])); }
+    }
     // A dead-end outcome off a single decision is a side exit: same row as the decision, to its right.
     const side = new Set(ids.filter((i) => byId.get(i).type === 'outcome' && !happy.has(i) && parents.get(i).length === 1));
     for (const i of side) layer.set(i, layer.get(parents.get(i)[0]));
@@ -398,37 +485,62 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
       if (!L) return;
       const bary = (i) => { const p = parents.get(i).filter((x) => col.has(x)); return p.length ? p.reduce((s, x) => s + col.get(x), 0) / p.length : 0; };
       L.sort((a, b) => (side.has(a) - side.has(b)) || (happy.has(b) - happy.has(a)) || (bary(a) - bary(b)) || (ids.indexOf(a) - ids.indexOf(b)));
-      // happy-path node sits in column 0, the rest take the next free columns to its right
+      // Happy-path node in column 0. A decision's exits stack in the column right of it.
+      // The other steps take the next free columns.
       const used = new Set();
-      for (const i of L) {
-        let want = happy.has(i) ? 0 : side.has(i) ? col.get(parents.get(i)[0]) + 1 : Math.max(1, Math.round(bary(i)));
+      const place = (i) => {
+        if (side.has(i)) { const c = col.get(parents.get(i)[0]) + 1; col.set(i, c); used.add(c); return; }
+        let want = happy.has(i) ? 0 : Math.max(1, Math.round(bary(i)));
         while (used.has(want)) want++;
         used.add(want); col.set(i, want);
-      }
+      };
+      const sideReady = (i) => side.has(i) && col.has(parents.get(i)[0]);
+      L.filter((i) => !side.has(i) && happy.has(i)).forEach(place);
+      L.filter(sideReady).forEach(place);
+      L.filter((i) => !side.has(i) && !happy.has(i)).forEach(place);
+      L.filter((i) => side.has(i) && !col.has(i)).forEach(place);
     });
 
     const heights = new Map();
     for (const n of g.nodes) { measurer.innerHTML = nodeHtml(n, g.flow); heights.set(n.id, Math.max(n.type === 'start' ? 44 : 56, measurer.firstChild.offsetHeight)); }
+    // Labels on arrows between steps in the same row sit in the column gap: make it wide enough.
+    const labelW = (t) => Math.max(28, String(t).length * 6.6 + 14);
+    const gapX = Math.min(150, Math.max(GAP_X, ...g.edges.filter((e) => !e.loop && e.label && layer.get(e.from) === layer.get(e.to)).map((e) => labelW(e.label) + 24)));
+    const loops = g.edges.filter((e) => e.loop && byId.has(e.from) && byId.has(e.to)).length;
+    const left = PAD + (loops ? 34 + loops * 16 : 0);
     const pos = new Map(); let y = PAD, maxCol = 0;
     layers.forEach((L) => {
       if (!L) return;
-      const h = Math.max(...L.map((i) => heights.get(i)));
-      for (const i of L) { pos.set(i, { x: PAD + col.get(i) * (NODE_W + GAP_X), y: y + (h - heights.get(i)) / 2, w: NODE_W, h: heights.get(i), row: y }); maxCol = Math.max(maxCol, col.get(i)); }
+      const hOf = (i) => heights.get(i) + (byId.get(i)._stacked ? STACK : 0);
+      const main = L.filter((i) => !side.has(i));
+      const mainH = main.length ? Math.max(...main.map(hOf)) : 0;
+      const stacks = new Map();
+      for (const i of L.filter((i) => side.has(i))) { const k = parents.get(i)[0]; (stacks.get(k) || stacks.set(k, []).get(k)).push(i); }
+      const stackH = (list) => list.reduce((t, i) => t + heights.get(i), 0) + (list.length - 1) * 12;
+      const h = Math.max(mainH, ...[...stacks.values()].map(stackH));
+      for (const i of main) pos.set(i, { x: left + col.get(i) * (NODE_W + gapX), y: y + (mainH - heights.get(i)) / 2, w: NODE_W, h: heights.get(i), row: y, rowH: h, col: col.get(i) });
+      for (const list of stacks.values()) {
+        let sy = y + Math.max(0, (mainH - heights.get(list[0])) / 2);
+        for (const i of list) { pos.set(i, { x: left + col.get(i) * (NODE_W + gapX), y: sy, w: NODE_W, h: heights.get(i), row: y, rowH: h, col: col.get(i) }); sy += heights.get(i) + 12; }
+      }
+      for (const i of L) maxCol = Math.max(maxCol, col.get(i));
       y += h + GAP_Y;
     });
-    return { pos, width: PAD * 2 + (maxCol + 1) * NODE_W + maxCol * GAP_X, height: y - GAP_Y + PAD + 40, happy };
+    if (happyExit) happy.add(happyExit);
+    return { pos, left, gapX, width: left + PAD + (maxCol + 1) * NODE_W + maxCol * gapX + STACK, height: y - GAP_Y + PAD + 40, happy };
   }
 
   // ------------------------------------------------------------ canvas
   const svg = $('canvas');
   let view = { x: 0, y: 0, w: 800, h: 600 }, content = { width: 800, height: 600 };
   const setView = () => svg.setAttribute('viewBox', `${view.x} ${view.y} ${view.w} ${view.h}`);
-  // Fit the width at a readable size (never above 100%), anchored to the top; taller flows pan.
+  // Fit the width at a readable size (between 80% and 100%), anchored to the top-left; taller or wider flows pan.
   function fit() {
     const r = svg.getBoundingClientRect(); const cw = r.width || 800, ch = r.height || 600;
-    const scale = Math.min(1, cw / content.width);
+    // Readable first: never below 80%. Wider flows pan sideways.
+    const scale = Math.max(Math.min(0.8, 1), Math.min(1, cw / content.width));
     const w = cw / scale, h = ch / scale;
-    view = { x: Math.min(0, (content.width - w) / 2), y: 0, w, h }; setView();
+    view = { x: w >= content.width ? (content.width - w) / 2 : 0, y: 0, w, h }; setView();
   }
   function zoom(f, cx, cy) {
     const nw = Math.min(Math.max(view.w * f, 200), 8000), k = nw / view.w;
@@ -443,48 +555,181 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     zoom(ev.deltaY > 0 ? 1.1 : 0.9, view.x + (ev.clientX - r.left) / r.width * view.w, view.y + (ev.clientY - r.top) / r.height * view.h);
   }, { passive: false });
   let drag = null;
-  svg.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.node')) return; drag = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y }; svg.classList.add('dragging'); svg.setPointerCapture(ev.pointerId); });
-  svg.addEventListener('pointermove', (ev) => { if (!drag) return; const r = svg.getBoundingClientRect(); view.x = drag.vx - (ev.clientX - drag.x) * view.w / r.width; view.y = drag.vy - (ev.clientY - drag.y) * view.h / r.height; setView(); });
+  svg.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.node')) return; drag = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y, moved: false }; svg.classList.add('dragging'); svg.setPointerCapture(ev.pointerId); });
+  svg.addEventListener('pointermove', (ev) => { if (!drag) return; if (Math.abs(ev.clientX - drag.x) + Math.abs(ev.clientY - drag.y) > 3) drag.moved = true; const r = svg.getBoundingClientRect(); view.x = drag.vx - (ev.clientX - drag.x) * view.w / r.width; view.y = drag.vy - (ev.clientY - drag.y) * view.h / r.height; setView(); });
   const endDrag = () => { drag = null; svg.classList.remove('dragging'); };
-  svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
+  // A click (not a drag) on empty canvas clears the selection.
+  svg.addEventListener('pointerup', () => { const clicked = drag && !drag.moved; endDrag(); if (clicked && state.node) { state.node = null; state.composer = null; drawCanvas(false); drawInspector(); } });
+  svg.addEventListener('pointercancel', endDrag);
 
+  let lastPos = new Map();
+  // Pan so a step is in view (after a click from a list, a finding or an AI citation).
+  function reveal(id) {
+    const p = lastPos.get(id); if (!p) return;
+    if (p.y < view.y || p.y + p.h > view.y + view.h || p.x < view.x || p.x + p.w > view.x + view.w) {
+      view.y = Math.max(0, p.y - view.h * 0.3);
+      if (p.x < view.x || p.x + p.w > view.x + view.w) view.x = Math.max(Math.min(0, view.x), p.x + p.w / 2 - view.w / 2);
+      setView();
+    }
+  }
   function drawCanvas(refit) {
-    const g = graph(state.flow); const L = layout(g);
+    const g = graph(state.flow); const L = layout(g); lastPos = L.pos;
     content = { width: L.width, height: L.height };
     const hl = state.path === 'all' ? null : onPath(g, state.path);
     const parts = [`<defs>
       <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow" d="M0,0 L10,5 L0,10 z"/></marker>
       <marker id="ah-happy" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-happy" d="M0,0 L10,5 L0,10 z"/></marker>
       <marker id="ah-add" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-add" d="M0,0 L10,5 L0,10 z"/></marker>
-      <marker id="ah-del" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-del" d="M0,0 L10,5 L0,10 z"/></marker></defs>`];
+      <marker id="ah-del" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-del" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-loop" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-imp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-imp" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-focus" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arrow-focus" d="M0,0 L10,5 L0,10 z"/></marker></defs>`];
     const labels = [];
-    for (const e of g.edges) {
-      const a = L.pos.get(e.from), b = L.pos.get(e.to); if (!a || !b) continue;
+    const byId = new Map(g.nodes.map((n) => [n.id, n]));
+    const focus = state.node && byId.has(state.node) ? state.node : null;
+    const touches = (e) => !!focus && (e.from === focus || e.to === focus);
+    const fade = (e) => (focus && !touches(e) ? ' faded' : '');
+    const gone = (id) => ['added', 'removed'].includes(byId.get(id)?._d);
+    // A removed path between two steps that still exist is a re-route; the new steps show it.
+    const visible = g.edges.filter((e) => L.pos.get(e.from) && L.pos.get(e.to) && !(e._d === 'removed' && !gone(e.from) && !gone(e.to)));
+    const sameRow = (e) => L.pos.get(e.from).row === L.pos.get(e.to).row;
+
+    // Which grid cells hold a step, so routes can avoid them.
+    const cells = new Map();
+    for (const [id, p] of L.pos) cells.set(`${p.row}|${p.col}`, id);
+    const rows = [...new Set([...L.pos.values()].map((p) => p.row))].sort((x, y) => x - y);
+    const free = (row, col, ignore = []) => { const id = cells.get(`${row}|${col}`); return !id || ignore.includes(id); };
+    const between = (a, b) => rows.filter((r) => r > Math.min(a.row, b.row) && r < Math.max(a.row, b.row));
+    const span = (from, to) => { const out = []; for (let c = Math.min(from, to); c <= Math.max(from, to); c++) out.push(c); return out; };
+
+    // How each arrow leaves its source and enters its target. A fork keeps its straight-down
+    // branch on the bottom and sends the others out of the side; a merge keeps the arrow from
+    // above on the top and brings the others in from the side, as in a hand-drawn flowchart.
+    const mode = new Map();
+    for (const e of visible) {
+      if (e.loop || sameRow(e)) continue;
+      const a = L.pos.get(e.from), b = L.pos.get(e.to);
+      let out = 'bottom', inn = 'top';
+      if (a.col !== b.col) {
+        const dir = b.col > a.col ? 1 : -1;
+        const forkDown = visible.some((x) => x !== e && !x.loop && x.from === e.from && !sameRow(x) && L.pos.get(x.to).col === a.col);
+        const mergeDown = visible.some((x) => x !== e && !x.loop && x.to === e.to && !sameRow(x) && L.pos.get(x.from).col === b.col);
+        const sideOutClear = span(a.col + dir, b.col).every((c) => free(a.row, c)) && between(a, b).every((r) => free(r, b.col));
+        const sideInClear = span(a.col, b.col - dir).every((c) => free(b.row, c, [e.from])) && between(a, b).every((r) => free(r, a.col));
+        if (forkDown && sideOutClear) out = 'side';
+        else if (mergeDown && sideInClear) inn = 'side';
+      }
+      // Same column but a step in between: the arrow detours left (first column) or right.
+      const detour = a.col === b.col && !between(a, b).every((r) => free(r, a.col)) ? (a.col === 0 ? -1 : 1) : 0;
+      mode.set(e, { out, inn, detour });
+    }
+    // Arrows that still share the bottom of a step (or the top of one) get their own x,
+    // ordered left to right, so every line can be followed.
+    const STEP = 26;
+    const exitX = new Map(), entryX = new Map(), exitRank = new Map();
+    const spread = (nodeId, list, otherEnd, outMap) => {
+      const p = L.pos.get(nodeId), cx = p.x + p.w / 2;
+      const o = (e) => L.pos.get(e[otherEnd]);
+      const by = (a, b) => o(a).x - o(b).x || o(a).y - o(b).y;
+      const left = list.filter((e) => o(e).col < p.col).sort(by);
+      // Within the same column, arrows that will detour left leave from the left, and so on.
+      const same = list.filter((e) => o(e).col === p.col).sort((a, b) => (mode.get(a)?.detour || 0) - (mode.get(b)?.detour || 0) || by(a, b));
+      const right = list.filter((e) => o(e).col > p.col).sort(by);
+      const ordered = [...left, ...same, ...right];
+      // The arrow that goes straight up or down keeps the middle; the others spread to its sides.
+      const straight = same.findIndex((e) => !mode.get(e)?.detour);
+      const ci = same.length ? left.length + Math.max(0, straight) : (ordered.length - 1) / 2;
+      ordered.forEach((e, i) => { outMap.set(e, cx + (i - ci) * STEP); if (outMap === exitX) exitRank.set(e, i - ci); });
+    };
+    for (const n of g.nodes) {
+      if (!L.pos.get(n.id)) continue;
+      spread(n.id, visible.filter((e) => mode.get(e)?.out === 'bottom' && e.from === n.id), 'to', exitX);
+      spread(n.id, visible.filter((e) => mode.get(e)?.inn === 'top' && e.to === n.id), 'from', entryX);
+    }
+
+    let loopNo = 0;
+    for (const e of visible) {
+      const a = L.pos.get(e.from), b = L.pos.get(e.to);
+      const dim = hl && !(hl.has(e.from) && hl.has(e.to)) ? ' dim' : '';
+      const foc = touches(e) ? ' focus' : '';
+      if (e.loop) {
+        // Leave from the bottom, run left through the gap between rows, up the gutter, then into the target.
+        const gx = L.left - 22 - loopNo++ * 16, sx = a.x + a.w / 2, sy = a.y + a.h, gy = a.row + a.rowH + GAP_Y / 2 - 6;
+        const ty = b.col === 0 ? b.y + b.h / 2 : b.row - GAP_Y / 2 + 6;
+        const d = b.col === 0
+          ? `M${sx},${sy} V${gy} H${gx} V${ty} H${b.x - 2}`
+          : `M${sx},${sy} V${gy} H${gx} V${ty} H${b.x + b.w / 2} V${b.y - 2}`;
+        const cls = ['edge', 'loop', e._d ? `d-${e._d}` : ''].join(' ') + foc;
+        parts.push(`<g class="e${dim}${fade(e)}"><path class="${cls}" d="${d}" marker-end="url(#${foc ? 'ah-focus' : e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : 'ah-loop'})"/></g>`);
+        const text = `↺ ${e.label || 'repeat'}`;
+        labels.push({ cx: gx + 6 + Math.max(28, text.length * 6.6 + 14) / 2, cy: gy, text, cls: `loop${dim}${fade(e)}${foc}` });
+        continue;
+      }
       const happyEdge = L.happy.has(e.from) && L.happy.has(e.to) && e._d !== 'removed';
-      const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y - 2;
-      const sameRow = a.row === b.row;
+      const lw = Math.max(28, String(e.label || '').length * 6.6 + 14);
       let d, lx, ly;
-      if (sameRow) {
+      if (sameRow(e)) {
+        // A decision's exit in the same row: from its right side into the exit's left side.
         const sy = a.y + a.h / 2, ty = b.y + b.h / 2, sx = a.x + a.w, tx = b.x - 2;
         d = Math.abs(sy - ty) < 1 ? `M${sx},${sy} L${tx},${ty}` : `M${sx},${sy} C${(sx + tx) / 2},${sy} ${(sx + tx) / 2},${ty} ${tx},${ty}`;
-        lx = (sx + tx) / 2; ly = (sy + ty) / 2;
-      } else if (Math.abs(x1 - x2) < 1) { d = `M${x1},${y1} L${x2},${y2}`; lx = x1; ly = y1 + GAP_Y / 2 - 2; }
-      else { const sx = x1 < x2 ? a.x + a.w : a.x, sy = a.y + a.h / 2; d = `M${sx},${sy} C${x2},${sy} ${x2},${sy} ${x2},${y2}`; lx = (sx + x2) / 2; ly = sy; }
-      const cls = ['edge', happyEdge && !e._d ? 'happy' : '', e._d ? `d-${e._d}` : ''].join(' ');
-      const mk = e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : happyEdge ? 'ah-happy' : 'ah';
-      const dim = hl && !(hl.has(e.from) && hl.has(e.to)) ? ' dim' : '';
-      parts.push(`<g class="e${dim}"><path class="${cls}" d="${d}" marker-end="url(#${mk})"/></g>`);
-      if (e.label) {
-        const w = Math.max(28, e.label.length * 6.6 + 14);
-        labels.push(`<g class="elabel${dim}" transform="translate(${lx - w / 2},${ly - 10})"><rect width="${w}" height="20" rx="10"/><text x="${w / 2}" y="14" text-anchor="middle">${esc(e.label)}</text></g>`);
+        lx = (sx + tx) / 2; ly = Math.abs(sy - ty) < 1 ? sy : (sy + ty) / 2;
+      } else {
+        const m = mode.get(e), dir = b.col > a.col ? 1 : b.col < a.col ? -1 : 0;
+        const y1 = a.y + a.h, y2 = b.y - 2;
+        if (m.out === 'side') {
+          // Out of the side, across, then down into the target.
+          const sx = dir > 0 ? a.x + a.w : a.x, sy = a.y + a.h / 2, en = entryX.get(e);
+          d = `M${sx},${sy} H${en} V${y2}`; lx = sx + dir * (lw / 2 + 6); ly = sy;
+        } else if (m.inn === 'side') {
+          // Down from the source, then into the side of the target.
+          const ex = exitX.get(e), ty = b.y + b.h / 2, tx = dir > 0 ? b.x - 2 : b.x + b.w + 2;
+          d = `M${ex},${y1} V${ty} H${tx}`; lx = ex; ly = y1 + GAP_Y / 2 - 2;
+        } else {
+          const ex = exitX.get(e), en = entryX.get(e);
+          // Each arrow of a fork runs on its own horizontal track inside the gap.
+          const gy1 = a.row + a.rowH + GAP_Y / 2 + (exitRank.get(e) || 0) * 8, gy2 = b.row - GAP_Y / 2;
+          const clearColumn = a.col === b.col && between(a, b).every((r) => free(r, a.col));
+          const adjacent = Math.abs(a.row + a.rowH + GAP_Y - b.row) < 2;
+          if (a.col === b.col && Math.abs(ex - en) < 1 && clearColumn) { d = `M${ex},${y1} V${y2}`; lx = ex; ly = y1 + GAP_Y / 2 - 2; }
+          else if (adjacent || clearColumn) { d = `M${ex},${y1} V${gy1} H${en} V${y2}`; lx = (ex + en) / 2; ly = gy1; }
+          else {
+            // Skipping rows: along the column gap, so the arrow never crosses a step.
+            // In the first column the empty left side is the clearest channel.
+            const side = dir === 0 ? (a.col === 0 ? -1 : 1) : dir;
+            const chX = side > 0 ? a.x + a.w + L.gapX / 2 : a.col === 0 ? a.x - 16 : a.x - L.gapX / 2;
+            d = `M${ex},${y1} V${gy1} H${chX} V${gy2} H${en} V${y2}`; lx = (ex + chX) / 2; ly = gy1;
+          }
+        }
       }
+      const fan = byId.get(e.from)?.fanout;
+      const par = !!fan && fan.mode !== 'batch';
+      const cls = ['edge', happyEdge && !e._d && !e.implicit ? 'happy' : '', par ? 'par' : '', e.implicit ? 'implicit' : '', e._d ? `d-${e._d}` : ''].join(' ') + foc;
+      const mk = foc ? 'ah-focus' : e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : e.implicit ? 'ah-imp' : happyEdge ? 'ah-happy' : 'ah';
+      parts.push(`<g class="e${dim}${fade(e)}"><path class="${cls}" d="${d}" marker-end="url(#${mk})"/></g>`);
+      if (e.label) labels.push({ cx: lx, cy: ly, text: e.label, cls: `${e.implicit ? 'implicit' : ''}${dim}${fade(e)}${foc}` });
     }
     for (const n of g.nodes) {
       const p = L.pos.get(n.id); const dim = hl && !hl.has(n.id) ? ' dim' : '';
-      parts.push(`<g class="n${dim}" data-id="${esc(n.id)}"><foreignObject x="${p.x}" y="${p.y}" width="${p.w}" height="${p.h}">${nodeHtml(n, g.flow)}</foreignObject></g>`);
+      const k = n._stacked ? STACK : 0;
+      const inner = k ? nodeHtml(n, g.flow).replace('xmlns=', `style="width:${p.w}px;height:${p.h}px" xmlns=`) : nodeHtml(n, g.flow);
+      parts.push(`<g class="n${dim}" data-id="${esc(n.id)}"><foreignObject x="${p.x}" y="${p.y}" width="${p.w + k}" height="${p.h + k}">${inner}</foreignObject></g>`);
     }
-    svg.innerHTML = parts.join('') + labels.join('');
-    svg.querySelectorAll('g.n').forEach((el) => el.addEventListener('click', () => { state.node = el.dataset.id; state.composer = null; drawCanvas(false); drawInspector(); }));
+    // Labels never cover a step or another label: try the spot on the arrow, then nearby spots.
+    const boxes = g.nodes.map((n) => L.pos.get(n.id)).filter(Boolean).map((p) => ({ x: p.x - 3, y: p.y - 3, w: p.w + 6 + (STACK), h: p.h + 6 }));
+    const placed = [];
+    const hit = (r) => [...boxes, ...placed].some((o) => r.x < o.x + o.w && o.x < r.x + r.w && r.y < o.y + o.h && o.y < r.y + r.h);
+    // Focused labels are placed first, so they keep the best spots.
+    labels.sort((a, b) => (b.cls.includes('focus') - a.cls.includes('focus')));
+    for (const l of labels) {
+      const w = Math.max(28, String(l.text).length * 6.6 + 14);
+      const tries = [[0, 0], [0, -14], [0, 14], [w / 2 + 6, 0], [-w / 2 - 6, 0], [0, -26], [0, 26], [w / 2 + 6, -14], [-w / 2 - 6, -14]];
+      let r = null;
+      for (const [dx, dy] of tries) { const c = { x: l.cx + dx - w / 2, y: l.cy + dy - 10, w, h: 20 }; if (!hit(c)) { r = c; break; } }
+      r ||= { x: l.cx - w / 2, y: l.cy - 10, w, h: 20 };
+      placed.push({ ...r, text: l.text, cls: l.cls });
+    }
+    svg.innerHTML = parts.join('') + placed.map((l) => `<g class="elabel ${l.cls}" transform="translate(${l.x},${l.y})"><rect width="${l.w}" height="20" rx="10"/><text x="${l.w / 2}" y="14" text-anchor="middle">${esc(l.text)}</text></g>`).join('');
+    svg.querySelectorAll('g.n').forEach((el) => el.addEventListener('click', () => { state.node = el.dataset.id; state.composer = null; drawCanvas(false); reveal(state.node); drawInspector(); }));
     if (refit) fit(); else setView();
   }
 
@@ -558,7 +803,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     const others = outcomes.filter((o) => o.id !== f.happyPath);
     const chips = [`<button type="button" class="pathbtn" data-p="all" aria-pressed="${state.path === 'all'}">All paths</button>`];
     if (happy) chips.push(`<button type="button" class="pathbtn success" data-p="${esc(happy.id)}" aria-pressed="${state.path === happy.id}"><span class="dot"></span>Happy path: ${esc(happy.label)}</button>`);
-    for (const o of others) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}"><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
+    for (const o of others) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}${o.implicit ? ' implicit' : ''}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}" ${o.implicit ? 'title="Not handled in code"' : ''}><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
     const changes = state.showChanges ? changeSentences(f.id) : [];
     const findings = f.findings || [];
     const notes = [
@@ -572,7 +817,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
       ${notes.length ? `<details class="collapse" ${changes.length || findings.length <= 2 ? 'open' : ''}><summary>${changes.length ? `${changes.length} change${changes.length > 1 ? 's' : ''}` : ''}${changes.length && findings.length ? ' · ' : ''}${findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : ''}</summary><div class="notes" style="margin-top:6px">${notes.join('')}</div></details>` : ''}`;
     $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, [b.dataset.gonode])));
     $('flowhead').querySelectorAll('.pathbtn').forEach((b) => b.addEventListener('click', () => { state.path = b.dataset.p; drawFlowHead(); drawCanvas(false); }));
-    $('flowhead').querySelectorAll('.note[data-f]').forEach((b) => b.addEventListener('click', () => { const x = findings[+b.dataset.f]; if (x.nodes?.[0]) { state.node = x.nodes[0]; drawCanvas(false); drawInspector(); } }));
+    $('flowhead').querySelectorAll('.note[data-f]').forEach((b) => b.addEventListener('click', () => { const x = findings[+b.dataset.f]; if (x.nodes?.[0]) { state.node = x.nodes[0]; drawCanvas(false); reveal(state.node); drawInspector(); } }));
   }
 
   // ------------------------------------------------------------ functions
@@ -593,14 +838,48 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     if (kind === 'flag') return `/im-a-pm ask "Check ${ref}. A PM thinks this is wrong: ${t}"`;
     return `/im-a-pm ask "About ${ref}: ${t}"`;
   }
+
+  // The three things a PM does with a step. "Request a change" is the main action.
+  const ACTIONS = {
+    change: { icon: '✎', title: 'Request a change', blurb: 'Describe the new rule. Your agent changes the code on a branch, with tests, for engineers to review.', label: 'What should the rule be instead?',
+      ideas: ['Make this optional', 'Change the limit to …', 'Skip this for …', 'Remove this check'], send: 'Send change request' },
+    ask: { icon: '?', title: 'Ask a question', blurb: 'Get an answer in plain words, checked against the code.', label: 'Your question',
+      ideas: ['Why does this rule exist?', 'What happens if …?', 'Which customers does this affect?'], send: 'Ask' },
+    flag: { icon: '⚑', title: 'Flag as wrong', blurb: 'This step does not match how the product really behaves. Your agent re-checks it against the code.', label: 'What do you see instead?',
+      ideas: ['This does not happen in production', 'The real value is …', 'There is a step missing here'], send: 'Send report' },
+  };
+  function actionsHtml(subject) {
+    if (state.composer) return composerHtml(subject);
+    const tile = (k, extra = '') => { const a = ACTIONS[k]; return `<button type="button" class="act-tile ${extra}" data-k="${k}"><span class="ic" aria-hidden="true">${a.icon}</span><span class="tx"><b>${a.title}</b><small>${a.blurb}</small></span></button>`; };
+    return `<section class="act" aria-label="Actions"><span class="eyebrow">What do you want to do?</span>${tile('change', 'primary')}${tile('ask')}${subject.node ? tile('flag', 'warn') : ''}</section>`;
+  }
+  function composerHtml(subject) {
+    const a = ACTIONS[state.composer];
+    const viaAI = state.composer === 'ask' && aiAsk;
+    const next = viaAI ? 'Claude answers here, using this map.'
+      : served ? 'Saved to <span class="mono">.im-a-pm/requests/</span>. Your agent picks it up with <span class="mono">/im-a-pm inbox</span>.'
+      : 'Copies a command. Paste it into your coding agent (Claude Code, Codex, Copilot, Cursor…) in the repository.';
+    return `<section class="act open ${state.composer}" aria-label="${esc(a.title)}">
+      <div class="act-head"><span class="ic" aria-hidden="true">${a.icon}</span><div><b>${a.title}</b><small>${esc(subject.name)}</small></div><button type="button" class="linkish" id="composer-cancel">Cancel</button></div>
+      ${state.composer === 'change' && subject.rule ? `<div class="current"><span class="eyebrow">Current rule</span>${esc(subject.rule)}</div>` : ''}
+      <label for="composer-text">${a.label}</label>
+      <textarea id="composer-text" placeholder="${esc(a.ideas[0])}"></textarea>
+      <div class="ideas">${a.ideas.map((t) => `<button type="button" class="idea" data-idea="${esc(t)}">${esc(t)}</button>`).join('')}</div>
+      ${!viaAI && !served ? '<div class="cmd" id="composer-cmd"></div>' : ''}
+      <div class="next"><b>What happens next</b>${next}</div>
+      <button type="button" class="btn primary big" id="composer-send">${viaAI ? 'Ask Claude' : served ? a.send : 'Copy command'}</button>
+      <div class="toast" id="toast" role="status"></div>
+    </section>`;
+  }
   function drawInspector() {
     const box = $('inspector');
     const g = graph(state.flow);
     const n = g.nodes.find((x) => x.id === state.node);
+    const subject = n ? { node: n.id, name: `${TYPE_NAMES[n.type]}: ${n.label}`, rule: n.rule || '' } : { node: null, name: `Flow: ${g.flow.title}`, rule: g.flow.summary || '' };
     if (!n) {
-      box.innerHTML = `<div class="empty"><span class="eyebrow">Details</span><h3>Pick a step in the flow</h3><p>Click any box to see the exact rule behind it, how sure the map is, and where it lives in the code. From there you can ask a question or request a change.</p>
-        <p>Use the path buttons above the chart to follow one outcome at a time. Scroll or drag to move around, and hold Ctrl or ⌘ while scrolling to zoom.</p>
-        <div class="actions"><button type="button" class="btn" data-k="ask">Ask about this flow</button><button type="button" class="btn" data-k="change">Request a change to this flow</button></div>${composerHtml()}
+      box.innerHTML = `<div class="empty"><span class="eyebrow">This flow</span><h3>${esc(g.flow.title)}</h3><p>Click any step to see the exact rule behind it, how sure the map is, and where it lives in the code.</p>
+        ${actionsHtml(subject)}
+        <p class="muted small">Path buttons above the chart follow one outcome at a time. Scroll or drag to move around; hold Ctrl or ⌘ while scrolling to zoom.</p>
         ${(() => { const target = state.path === 'all' ? g.flow.happyPath : state.path; const nodes = pathOrder(g, target); const total = nodes.reduce((s, n) => s + (n.calls || []).length, 0); if (!total) return '';
           const name = target === g.flow.happyPath ? 'the happy path' : `“${esc(g.flow.outcomes?.[target] || target)}”`;
           return `<details class="collapse"><summary>For engineers: functions on ${name}, in order (${total})</summary><ol class="calls">${nodes.map((n) => (n.calls || []).length ? `<li class="grp">${esc(n.label)}</li>${callItems(n.calls)}` : '').join('')}</ol></details>`; })()}</div>`;
@@ -611,43 +890,46 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
       const rows = [];
       if (n.type === 'data' && n.data) rows.push(['Information', `${esc(n.data.op)} · ${esc(n.data.entity)}${n.data.fields ? ` (${n.data.fields.map(esc).join(', ')})` : ''}`]);
       if (n.type === 'external' && n.system) rows.push(['System', esc(n.system)]);
+      if (n.fanout) rows.push(['Runs', `${FANOUT_ICON[n.fanout.mode] || ''} ${esc(FANOUT_TEXT[n.fanout.mode] || n.fanout.mode)}: ${esc(n.fanout.over)}`]);
+      if (n.join) rows.push(['Waits for', esc(JOIN_TEXT[n.join.mode] || n.join.mode)]);
+      if (n._stacked) rows.push(['Runs', 'once per item of the split above, at the same time']);
+      for (const e of f.edges.filter((x) => x.loop && (x.from === n.id || x.to === n.id))) {
+        const other = f.nodes.find((x) => x.id === (e.from === n.id ? e.to : e.from));
+        rows.push(['Repeats', e.from === n.id ? `goes back to “${esc(other?.label)}”${e.label ? ` (${esc(e.label)})` : ''}` : `runs again after “${esc(other?.label)}”${e.label ? ` (${esc(e.label)})` : ''}`]);
+      }
       if (n.type === 'outcome') { rows.push(['Result', esc(n.result)]); if (n.response) rows.push(['Response', `<span class="mono">${esc(n.response)}</span>`]); }
       if (n.confidence) rows.push(['Confidence', `<span class="pill ${esc(n.confidence)}">${esc(n.confidence)}</span>`]);
       const diffBlock = n._d === 'changed' ? Object.entries(before).filter(([k]) => ['label', 'rule', 'response', 'result'].includes(k)).map(([k, [a, b]]) => `<div class="before"><b>Before · ${esc(k)}</b>${esc(a ?? '—')}</div><div class="after"><b>Now · ${esc(k)}</b>${esc(b ?? '—')}</div>`).join('')
         : n._d === 'added' ? '<div class="after"><b>New</b>This step was added.</div>' : n._d === 'removed' ? '<div class="before"><b>Removed</b>This step no longer exists.</div>' : '';
       box.innerHTML = `<span class="eyebrow">${TYPE_NAMES[n.type]}</span><h3>${esc(n.label)}</h3>
+        ${n.implicit ? `<div class="implicitbox"><b>Not handled in code</b>No code path was written for this case. This is what happens by default.</div>` : ''}
         ${n.rule ? `<p class="rule">${esc(n.rule)}</p>` : ''}
         ${diffBlock}
         ${rows.length ? `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : ''}
         ${n.stale ? `<div class="stalebox"><b>Needs re-check</b>The code behind this step changed: ${esc((n.stale.reasons || []).join('; '))}.</div>` : ''}
         ${findings.map((x) => `<div class="note" style="cursor:default"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></div>`).join('')}
         ${(n.emits || []).length ? `<div class="links"><span class="muted">Continues in</span>${n.emits.map((e) => { const nx = consumers.get(e.channel) || []; return nx.length ? nx.map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.id)}" data-gonode="start">${esc(x.title)} ↳</button>`).join('') : `<span class="mono">${esc(e.channel)}</span>`; }).join('')}</div>` : ''}
-        ${n._d === 'removed' ? '' : `<div class="actions"><button type="button" class="btn" data-k="ask">Ask</button><button type="button" class="btn" data-k="change">Request change</button><button type="button" class="btn" data-k="flag">Flag as wrong</button></div>${composerHtml()}`}
+        ${n._d === 'removed' ? '' : actionsHtml(subject)}
         ${n.calls?.length ? `<details class="collapse"><summary>For engineers: functions that run here, in order (${n.calls.length})</summary><ol class="calls">${callItems(n.calls)}</ol></details>` : ''}
         ${n.anchors?.length ? `<details class="collapse"><summary>For engineers: where the rule lives</summary><div class="anchors">${n.anchors.map((a) => `<code>${esc(a.file)}:${esc(a.line)}</code>`).join('')}</div></details>` : ''}`;
     }
     box.querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, [b.dataset.gonode])));
-    box.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { state.composer = state.composer === b.dataset.k ? null : b.dataset.k; drawInspector(); }));
+    box.querySelectorAll('[data-k]').forEach((b) => b.addEventListener('click', () => { state.composer = b.dataset.k; drawInspector(); }));
+    $('composer-cancel')?.addEventListener('click', () => { state.composer = null; drawInspector(); });
     const ta = $('composer-text');
     if (ta) {
-      ta.focus();
+      ta.focus({ preventScroll: true });
       const cmd = $('composer-cmd');
       const upd = () => { if (cmd) cmd.textContent = command(state.composer, state.flow, n?.id, ta.value || '…'); };
       ta.addEventListener('input', upd); upd();
-      $('composer-send').addEventListener('click', () => send(state.composer, n?.id, ta.value.trim()));
+      box.querySelectorAll('.idea').forEach((b) => b.addEventListener('click', () => { ta.value = b.dataset.idea; ta.focus(); const i = ta.value.indexOf('…'); if (i >= 0) ta.setSelectionRange(i, i + 1); upd(); }));
+      $('composer-send').addEventListener('click', () => send(state.composer, n?.id, ta.value.trim(), subject));
     }
   }
-  function composerHtml() {
-    if (!state.composer) return '';
-    const label = { ask: 'Your question', change: 'Describe the change in business terms', flag: 'What looks wrong?' }[state.composer];
-    const ph = { ask: 'Why would this be rejected?', change: 'Only published videos should be playable', flag: 'I think drafts are hidden from the catalog' }[state.composer];
-    return `<div class="composer"><label for="composer-text" class="muted">${label}</label><textarea id="composer-text" placeholder="${esc(ph)}"></textarea>
-      ${served ? '' : `<span class="muted">Paste this into your coding agent (Claude Code, Codex, Copilot, Cursor…) in the repository:</span><div class="cmd" id="composer-cmd"></div>`}
-      <div class="actions"><button type="button" class="btn primary" id="composer-send">${served ? 'Send to agent' : 'Copy command'}</button></div><div class="toast" id="toast" role="status"></div></div>`;
-  }
-  async function send(kind, nodeId, text) {
+  async function send(kind, nodeId, text, subject) {
     const toast = $('toast');
     if (!text) { toast.textContent = 'Write something first.'; return; }
+    if (kind === 'ask' && aiAsk) { aiAsk(`About ${subject.name} (in the flow "${flowOf(state.flow).title}"): ${text}`); return; }
     if (served) {
       try {
         const r = await fetch('/api/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, flow: state.flow, node: nodeId || null, text }) });
@@ -668,7 +950,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     state.hl = new Set(highlight || []);
     if (highlight?.length === 1 && highlight[0] !== 'start') state.node = highlight[0];
     if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', `#${id}`);
-    drawIndex(); drawFlowHead(); drawCanvas(true); drawInspector();
+    drawIndex(); drawFlowHead(); drawCanvas(true); if (state.node) reveal(state.node); drawInspector();
   }
   function drawAll(refit) { drawTop(); drawIndex(); drawFlowHead(); drawCanvas(refit); drawInspector(); }
   window.addEventListener('hashchange', () => { const h = location.hash.slice(1); if (h && h !== state.flow && flowOf(h)) select(h, true); });
@@ -737,13 +1019,15 @@ ${map}`;
         const fid = b.dataset.ref.split('/')[0];
         const sameFlow = refs.filter((r) => r.startsWith(fid + '/')).map((r) => r.split('/')[1]);
         select(fid, false, sameFlow.length ? sameFlow : undefined);
-        if (b.dataset.ref.includes('/')) { state.node = b.dataset.ref.split('/')[1]; drawCanvas(false); drawInspector(); }
+        if (b.dataset.ref.includes('/')) { state.node = b.dataset.ref.split('/')[1]; drawCanvas(false); reveal(state.node); drawInspector(); }
         $('bench').scrollIntoView({ behavior: 'smooth', block: 'start' });
       }));
       return refs;
     };
     let ctl = null;
     stop.onclick = () => ctl?.abort();
+    aiAsk = (question) => { q.value = question; form.requestSubmit(); box.scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+    if (state.flow) drawInspector();
     form.addEventListener('submit', async (ev) => {
       ev.preventDefault();
       const question = q.value.trim(); if (!question) { q.focus(); return; }

@@ -1,0 +1,63 @@
+diff -ruN a/src/app.js b/src/app.js
+--- a/src/app.js	2026-11-07 19:36:38.613383744 +0000
++++ b/src/app.js	2026-11-07 19:27:15.692050173 +0000
+@@ -1,8 +1,10 @@
+ import express from 'express';
++import cron from 'node-cron';
+ import { Queue, Worker } from './lib/queue.js';
+ import { requireCustomer } from './lib/auth.js';
+ import { placeOrder } from './orders/place-order.js';
+ import { fulfillOrder } from './fulfillment/fulfill-order.js';
++import { invoiceNightly } from './invoicing/nightly-invoices.js';
+ 
+ export const fulfillmentQueue = new Queue('fulfillment');
+ 
+@@ -15,4 +17,7 @@
+ // Ships paid orders. A failed job is retried by the queue, up to 5 times.
+ new Worker('fulfillment', fulfillOrder, { attempts: 5, backoff: { type: 'exponential', delay: 60_000 } });
+ 
++// Invoices every order from the day, at 02:00.
++cron.schedule('0 2 * * *', invoiceNightly);
++
+ app.listen(3000);
+diff -ruN a/src/invoicing/nightly-invoices.js b/src/invoicing/nightly-invoices.js
+--- a/src/invoicing/nightly-invoices.js	1970-01-01 00:00:00.000000000 +0000
++++ b/src/invoicing/nightly-invoices.js	2026-11-07 19:27:15.697510410 +0000
+@@ -0,0 +1,17 @@
++import { orders, invoices } from '../lib/services.js';
++
++const BATCH_SIZE = 100;
++
++export async function invoiceNightly() {
++  let cursor = null;
++  while (true) {
++    const batch = await orders.listUninvoiced({ after: cursor, limit: BATCH_SIZE });
++    if (batch.length === 0) break;
++
++    // Every invoice in the batch is issued at the same time.
++    await Promise.all(batch.map((order) => invoices.issue(order)));
++    await orders.markInvoiced(batch.map((order) => order.id));
++
++    cursor = batch[batch.length - 1].id;
++  }
++}
+diff -ruN a/src/orders/place-order.js b/src/orders/place-order.js
+--- a/src/orders/place-order.js	2026-11-07 19:36:38.613117907 +0000
++++ b/src/orders/place-order.js	2026-11-07 19:27:15.694568179 +0000
+@@ -2,6 +2,7 @@
+ import { fulfillmentQueue } from '../app.js';
+ 
+ const MAX_PAYMENT_ATTEMPTS = 3;
++const FREE_SHIPPING_FROM = 100;
+ const SHIPPING_FEE = 7.9;
+ 
+ export async function placeOrder(req, res) {
+@@ -18,7 +19,7 @@
+     }
+   }
+ 
+-  const shipping = SHIPPING_FEE;
++  const shipping = cart.total >= FREE_SHIPPING_FROM ? 0 : SHIPPING_FEE;
+ 
+   let attempt = 0;
+   let charge;

@@ -1,0 +1,929 @@
+{
+  "version": 1,
+  "app": {
+    "name": "Shop",
+    "summary": "Customers check out a cart and pay by card. Paid orders ship from one or more warehouses, and every night the day's orders are invoiced.",
+    "repo": "examples/shop",
+    "ref": "v1",
+    "commit": null,
+    "generatedAt": "2026-11-08T10:00:00Z"
+  },
+  "glossary": [
+    {
+      "term": "Order",
+      "meaning": "A paid cart. Created only after the card is charged."
+    },
+    {
+      "term": "Shipment",
+      "meaning": "What one warehouse sends for an order. An order can have several."
+    },
+    {
+      "term": "Invoice",
+      "meaning": "Issued every night for the previous day's orders."
+    }
+  ],
+  "excluded": [],
+  "flows": [
+    {
+      "id": "place-order",
+      "title": "Place an order",
+      "domain": "Checkout",
+      "actor": "Customer",
+      "trigger": {
+        "kind": "http",
+        "signature": "POST /orders",
+        "anchors": [
+          {
+            "file": "src/app.js",
+            "line": 15
+          }
+        ]
+      },
+      "summary": "A signed-in customer checks out their cart. Stock is checked, shipping is added, the card is charged (with retries), the order is saved and sent to shipping.",
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "label": "Customer places an order",
+          "calls": [
+            {
+              "fn": "app.post /orders",
+              "file": "src/app.js",
+              "line": 15,
+              "depth": 0,
+              "kind": "framework",
+              "note": "Express route, runs requireCustomer then placeOrder"
+            }
+          ]
+        },
+        {
+          "id": "signed-in",
+          "type": "decision",
+          "label": "Is the customer signed in?",
+          "rule": "Only a signed-in customer can place an order.",
+          "anchors": [
+            {
+              "file": "src/lib/auth.js",
+              "line": 5
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "requireCustomer",
+              "file": "src/lib/auth.js",
+              "line": 3,
+              "endLine": 10,
+              "depth": 0,
+              "kind": "framework",
+              "note": "middleware"
+            }
+          ]
+        },
+        {
+          "id": "has-items",
+          "type": "decision",
+          "label": "Does the cart have items?",
+          "rule": "An empty cart cannot be ordered.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 10
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "placeOrder",
+              "file": "src/orders/place-order.js",
+              "line": 8,
+              "endLine": 52,
+              "depth": 0
+            },
+            {
+              "fn": "carts.get",
+              "file": "src/orders/place-order.js",
+              "line": 9,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "in-stock",
+          "type": "decision",
+          "label": "Is every item in stock?",
+          "rule": "Each item is checked one by one with the inventory service. The first item without enough stock stops the order. Stock is only checked, not reserved.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 17
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "placeOrder (stock loop)",
+              "file": "src/orders/place-order.js",
+              "line": 15,
+              "endLine": 20,
+              "depth": 1
+            },
+            {
+              "fn": "inventory.available",
+              "file": "src/orders/place-order.js",
+              "line": 16,
+              "depth": 2
+            }
+          ]
+        },
+        {
+          "id": "add-fee",
+          "type": "action",
+          "label": "Add $7.90 shipping",
+          "rule": "Every order pays $7.90 shipping.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 6
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "placeOrder (shipping)",
+              "file": "src/orders/place-order.js",
+              "line": 22,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "charge",
+          "type": "external",
+          "label": "Charge the card",
+          "system": "Payment provider",
+          "rule": "Charges the cart total plus shipping.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 28
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "placeOrder (payment loop)",
+              "file": "src/orders/place-order.js",
+              "line": 26,
+              "endLine": 37,
+              "depth": 1
+            },
+            {
+              "fn": "payments.charge",
+              "file": "src/orders/place-order.js",
+              "line": 28,
+              "depth": 2
+            }
+          ]
+        },
+        {
+          "id": "approved",
+          "type": "decision",
+          "label": "Was the payment approved?",
+          "rule": "Approved continues. Declined stops the order. Any other answer from the provider is treated as a temporary failure and retried.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 29
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "placeOrder (payment status)",
+              "file": "src/orders/place-order.js",
+              "line": 29,
+              "endLine": 32,
+              "depth": 2
+            }
+          ]
+        },
+        {
+          "id": "attempts-left",
+          "type": "decision",
+          "label": "Any payment attempts left?",
+          "rule": "Up to 3 attempts in total.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 4
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "placeOrder (attempt limit)",
+              "file": "src/orders/place-order.js",
+              "line": 33,
+              "endLine": 35,
+              "depth": 2
+            }
+          ]
+        },
+        {
+          "id": "wait",
+          "type": "action",
+          "label": "Wait, then try again",
+          "rule": "Waits 1 second after the first failure and 2 seconds after the second.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 36
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "sleep",
+              "file": "src/orders/place-order.js",
+              "line": 36,
+              "depth": 2
+            }
+          ]
+        },
+        {
+          "id": "save-order",
+          "type": "data",
+          "label": "Save the order as paid",
+          "data": {
+            "op": "write",
+            "entity": "Order",
+            "fields": [
+              "items",
+              "shipping",
+              "total",
+              "chargeId",
+              "status"
+            ]
+          },
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 40
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "orders.create",
+              "file": "src/orders/place-order.js",
+              "line": 40,
+              "endLine": 47,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "queue-shipping",
+          "type": "action",
+          "label": "Send the order to shipping",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 49
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "fulfillmentQueue.add",
+              "file": "src/orders/place-order.js",
+              "line": 49,
+              "depth": 1,
+              "kind": "event"
+            }
+          ],
+          "emits": [
+            {
+              "channel": "queue:fulfillment",
+              "label": "one job per order"
+            }
+          ]
+        },
+        {
+          "id": "clear-cart",
+          "type": "data",
+          "label": "Empty the cart",
+          "data": {
+            "op": "delete",
+            "entity": "Cart"
+          },
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 50
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "carts.clear",
+              "file": "src/orders/place-order.js",
+              "line": 50,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "placed",
+          "type": "outcome",
+          "label": "Order placed",
+          "result": "success",
+          "response": "201 · the order",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 51
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "not-signed-in",
+          "type": "outcome",
+          "label": "Asked to sign in",
+          "result": "rejected",
+          "response": "401 · Sign in to place an order",
+          "anchors": [
+            {
+              "file": "src/lib/auth.js",
+              "line": 6
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "empty-cart",
+          "type": "outcome",
+          "label": "Refused: the cart is empty",
+          "result": "rejected",
+          "response": "400 · Your cart is empty",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 11
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "out-of-stock",
+          "type": "outcome",
+          "label": "Refused: an item is out of stock",
+          "result": "rejected",
+          "response": "409 · <item> is out of stock",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 18
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "inventory-down",
+          "type": "outcome",
+          "label": "Generic error: inventory did not answer",
+          "result": "error",
+          "response": "500 · Internal Server Error (Express default)",
+          "implicit": true,
+          "rule": "The code does not handle an inventory timeout. The error escapes and Express answers with its default 500 page.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 14
+            }
+          ],
+          "confidence": "medium"
+        },
+        {
+          "id": "declined",
+          "type": "outcome",
+          "label": "Refused: card declined",
+          "result": "rejected",
+          "response": "402 · Your card was declined",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 31
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "payments-down",
+          "type": "outcome",
+          "label": "Payments unavailable",
+          "result": "error",
+          "response": "503 · Payments are unavailable, try again later",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 34
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "charged-no-order",
+          "type": "outcome",
+          "label": "Card charged, but no order saved",
+          "result": "error",
+          "response": "500 · Internal Server Error (Express default)",
+          "implicit": true,
+          "rule": "If saving the order fails, the card has already been charged. Nothing refunds it and the customer sees a generic error.",
+          "anchors": [
+            {
+              "file": "src/orders/place-order.js",
+              "line": 39
+            }
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "signed-in"
+        },
+        {
+          "from": "signed-in",
+          "to": "has-items",
+          "label": "Yes"
+        },
+        {
+          "from": "signed-in",
+          "to": "not-signed-in",
+          "label": "No"
+        },
+        {
+          "from": "has-items",
+          "to": "in-stock",
+          "label": "Yes"
+        },
+        {
+          "from": "has-items",
+          "to": "empty-cart",
+          "label": "No"
+        },
+        {
+          "from": "in-stock",
+          "to": "out-of-stock",
+          "label": "No"
+        },
+        {
+          "from": "in-stock",
+          "to": "inventory-down",
+          "label": "Times out",
+          "implicit": true
+        },
+        {
+          "from": "add-fee",
+          "to": "charge"
+        },
+        {
+          "from": "charge",
+          "to": "approved"
+        },
+        {
+          "from": "approved",
+          "to": "save-order",
+          "label": "Approved"
+        },
+        {
+          "from": "approved",
+          "to": "declined",
+          "label": "Declined"
+        },
+        {
+          "from": "approved",
+          "to": "attempts-left",
+          "label": "Other"
+        },
+        {
+          "from": "attempts-left",
+          "to": "wait",
+          "label": "Yes"
+        },
+        {
+          "from": "attempts-left",
+          "to": "payments-down",
+          "label": "No"
+        },
+        {
+          "from": "wait",
+          "to": "charge",
+          "label": "retry",
+          "loop": true
+        },
+        {
+          "from": "save-order",
+          "to": "queue-shipping"
+        },
+        {
+          "from": "save-order",
+          "to": "charged-no-order",
+          "label": "Save fails",
+          "implicit": true
+        },
+        {
+          "from": "queue-shipping",
+          "to": "clear-cart"
+        },
+        {
+          "from": "in-stock",
+          "to": "add-fee",
+          "label": "Yes"
+        },
+        {
+          "from": "clear-cart",
+          "to": "placed"
+        }
+      ],
+      "happyPath": "placed",
+      "outcomes": {
+        "not-signed-in": "Not signed in",
+        "empty-cart": "Empty cart",
+        "out-of-stock": "Out of stock",
+        "inventory-down": "Inventory times out",
+        "declined": "Card declined",
+        "payments-down": "Payments unavailable",
+        "charged-no-order": "Charged but not saved"
+      },
+      "findings": [
+        {
+          "kind": "risk",
+          "text": "If saving the order fails after the card is charged, the customer pays and gets no order. Nothing refunds them.",
+          "nodes": [
+            "charged-no-order",
+            "save-order"
+          ]
+        },
+        {
+          "kind": "gap",
+          "text": "Stock is checked but not reserved, so two customers can both buy the last unit.",
+          "nodes": [
+            "in-stock"
+          ]
+        },
+        {
+          "kind": "risk",
+          "text": "Any payment answer other than \"approved\" or \"declined\" (for example \"pending review\") is retried, which may charge the customer again.",
+          "nodes": [
+            "approved"
+          ]
+        },
+        {
+          "kind": "gap",
+          "text": "An inventory timeout shows the customer a generic error page instead of a message.",
+          "nodes": [
+            "inventory-down"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ship-order",
+      "title": "Ship a paid order",
+      "domain": "Shipping",
+      "actor": "Queue worker",
+      "trigger": {
+        "kind": "job",
+        "signature": "Worker \"fulfillment\" (5 attempts, exponential backoff)",
+        "channel": "queue:fulfillment",
+        "anchors": [
+          {
+            "file": "src/app.js",
+            "line": 18
+          }
+        ]
+      },
+      "summary": "Runs for every paid order. Each warehouse holding items gets its shipment request at the same time. When all have accepted, the order is marked shipped and the customer gets the tracking links.",
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "label": "Shipping job starts",
+          "calls": [
+            {
+              "fn": "new Worker(fulfillment)",
+              "file": "src/app.js",
+              "line": 18,
+              "depth": 0,
+              "kind": "framework",
+              "note": "queue worker; attempts: 5"
+            }
+          ]
+        },
+        {
+          "id": "cancelled",
+          "type": "decision",
+          "label": "Was the order cancelled?",
+          "rule": "Cancelled orders are skipped.",
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 5
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "fulfillOrder",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 3,
+              "endLine": 22,
+              "depth": 0
+            },
+            {
+              "fn": "orders.get",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 4,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "split",
+          "type": "action",
+          "label": "Split the order by warehouse",
+          "rule": "One shipment per warehouse that holds items of the order. All are requested at the same time.",
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 10
+            }
+          ],
+          "confidence": "high",
+          "fanout": {
+            "mode": "parallel",
+            "over": "one shipment per warehouse, all at once"
+          },
+          "calls": [
+            {
+              "fn": "groupBy",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 10,
+              "depth": 1
+            },
+            {
+              "fn": "Promise.all",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 11,
+              "endLine": 13,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "request-shipment",
+          "type": "external",
+          "label": "Ask the warehouse to ship its items",
+          "system": "Warehouse API",
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 12
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "warehouses.createShipment",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 12,
+              "depth": 2
+            }
+          ]
+        },
+        {
+          "id": "all-accepted",
+          "type": "decision",
+          "label": "Did every warehouse accept?",
+          "rule": "Waits for every warehouse. A single rejection fails the whole job.",
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 14
+            }
+          ],
+          "confidence": "high",
+          "join": {
+            "mode": "all"
+          },
+          "calls": [
+            {
+              "fn": "Promise.all (join)",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 11,
+              "endLine": 13,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "retries-left",
+          "type": "decision",
+          "label": "Does the queue have retries left?",
+          "rule": "The queue runs the whole job again, up to 5 attempts in total, waiting longer each time (about 1, 2, 4 and 8 minutes).",
+          "anchors": [
+            {
+              "file": "src/app.js",
+              "line": 18
+            }
+          ],
+          "confidence": "medium",
+          "calls": [
+            {
+              "fn": "Worker options",
+              "file": "src/app.js",
+              "line": 18,
+              "depth": 0,
+              "kind": "config",
+              "note": "attempts: 5, exponential backoff from 60 s"
+            }
+          ]
+        },
+        {
+          "id": "mark-shipped",
+          "type": "data",
+          "label": "Mark the order as shipped",
+          "data": {
+            "op": "write",
+            "entity": "Order",
+            "fields": [
+              "status",
+              "tracking"
+            ]
+          },
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 16
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "orders.update",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 16,
+              "endLine": 19,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "email",
+          "type": "external",
+          "label": "Email the tracking links",
+          "system": "Email",
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 20
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "mailer.send",
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 20,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "shipped",
+          "type": "outcome",
+          "label": "Order shipped",
+          "result": "success",
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 21
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "skipped",
+          "type": "outcome",
+          "label": "Nothing shipped: order cancelled",
+          "result": "rejected",
+          "anchors": [
+            {
+              "file": "src/fulfillment/fulfill-order.js",
+              "line": 6
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "gave-up",
+          "type": "outcome",
+          "label": "Job fails for good; nobody is told",
+          "result": "error",
+          "implicit": true,
+          "rule": "After the 5th failure the job stays in the queue's failed list. The order stays \"paid\", and no one is alerted.",
+          "anchors": [
+            {
+              "file": "src/app.js",
+              "line": 18
+            }
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "cancelled"
+        },
+        {
+          "from": "cancelled",
+          "to": "split",
+          "label": "No"
+        },
+        {
+          "from": "cancelled",
+          "to": "skipped",
+          "label": "Yes"
+        },
+        {
+          "from": "split",
+          "to": "request-shipment",
+          "label": "each warehouse"
+        },
+        {
+          "from": "request-shipment",
+          "to": "all-accepted"
+        },
+        {
+          "from": "all-accepted",
+          "to": "mark-shipped",
+          "label": "Yes"
+        },
+        {
+          "from": "all-accepted",
+          "to": "retries-left",
+          "label": "No",
+          "implicit": true
+        },
+        {
+          "from": "retries-left",
+          "to": "cancelled",
+          "label": "run the whole job again",
+          "loop": true
+        },
+        {
+          "from": "retries-left",
+          "to": "gave-up",
+          "label": "No",
+          "implicit": true
+        },
+        {
+          "from": "mark-shipped",
+          "to": "email"
+        },
+        {
+          "from": "email",
+          "to": "shipped"
+        }
+      ],
+      "happyPath": "shipped",
+      "outcomes": {
+        "skipped": "Order was cancelled",
+        "gave-up": "Gives up after 5 attempts"
+      },
+      "findings": [
+        {
+          "kind": "risk",
+          "text": "A retry asks every warehouse again, including the ones that already accepted. One failing warehouse can create up to 5 duplicate shipments elsewhere.",
+          "nodes": [
+            "retries-left",
+            "request-shipment"
+          ]
+        },
+        {
+          "kind": "gap",
+          "text": "When the job gives up, the order stays \"paid\" forever and nobody is alerted.",
+          "nodes": [
+            "gave-up"
+          ]
+        }
+      ]
+    }
+  ]
+}
