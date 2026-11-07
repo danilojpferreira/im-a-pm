@@ -1,0 +1,34 @@
+Publish a video → Video is live
+
+[start] Editor publishes a video
+   1. VideoController.publishVideo (framework)  src/main/java/com/eeze/video/application/controllers/VideoController.java:106  — PATCH /videos/{id}/publish routed by Spring MVC mapping annotation
+
+[decision] Does the video exist and is it not deleted?
+   2. VideoController.publishVideo  src/main/java/com/eeze/video/application/controllers/VideoController.java:107-111
+   3.   PublishVideoHandler.execute  src/main/java/com/eeze/video/application/handlers/PublishVideoHandler.java:32-54
+   4.     VideoService.publish  src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java:200-215
+   5.       VideoService.findOne  src/main/java/com/eeze/video/domain/services/VideoService/VideoService.java:147-151
+   6.         VideoRepository.findValid  src/main/java/com/eeze/video/domain/repositories/VideoRepository.java:53-62
+   7.           VideoDatabase.findValid (query)  src/main/java/com/eeze/video/infrastructure/databases/VideoDatabase.java:26-27  — SQL: status != 'ARCHIVED'
+   8.           Mapper.toVideo(Optional)  src/main/java/com/eeze/video/domain/repositories/utils/Mapper.java:53-59
+
+[decision] Is the video still a draft?
+   9.       Video.validatePublish (status check)  src/main/java/com/eeze/video/domain/entities/video/Video.java:115-118
+
+[decision] Does the video have content?
+  10.       Video.validatePublish (content check)  src/main/java/com/eeze/video/domain/entities/video/Video.java:121-124
+
+[decision] Are all the details filled in?
+  11.       Video.validatePublish (details check)  src/main/java/com/eeze/video/domain/entities/video/Video.java:126-129
+  12.         Metadata.isComplete  src/main/java/com/eeze/video/domain/entities/video/Metadata.java:91-98
+
+[data] Mark the video as published
+  13.       Video.setStatus  src/main/java/com/eeze/video/domain/entities/video/Video.java:100-104  — PUBLISHED
+  14.       VideoRepository.save  src/main/java/com/eeze/video/domain/repositories/VideoRepository.java:36-43
+  15.         Mapper.toDatabaseEntity  src/main/java/com/eeze/video/domain/repositories/utils/Mapper.java:68-72
+  16.           DatabaseVideoEntity.update  src/main/java/com/eeze/video/infrastructure/entities/DatabaseVideoEntity.java:100-114
+  17.         VideoDatabase.save (framework)  src/main/java/com/eeze/video/domain/repositories/VideoRepository.java:40  — Spring Data JPA insert/update
+  18.         Mapper.toVideo  src/main/java/com/eeze/video/domain/repositories/utils/Mapper.java:24-43
+
+[outcome] Video is live
+  19.     PublishVideoResponse(constructor)  src/main/java/com/eeze/video/application/dtos/responses/PublishVideoResponse.java:22-25

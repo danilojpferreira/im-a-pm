@@ -1,0 +1,12 @@
+Changes 043b40f → 22c4a60. Line numbers in the map now point at 22c4a60.
+
+Steps to re-check (1 flow):
+  Publish a video [publish-video]
+    ! Are all the details filled in? [details-complete]: Metadata.isComplete changed
+
+Possible new or changed entrypoints:
+  src/main/java/com/eeze/video/application/controllers/VideoController.java:120  @PatchMapping(path = "videos/{id}/unpublish")
+
+Changed files the map does not reference (check for new rules, wiring or entrypoints):
+  A src/main/java/com/eeze/video/application/handlers/UnpublishVideoHandler.java
+  M src/test/java/com/eeze/video/domain/services/VideoService/VideoServiceTest.java

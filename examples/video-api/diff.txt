@@ -1,0 +1,4 @@
++ New flow: Unpublish a video
+~ Publish a video
+    ~ Are all the details filled in? (rule): "All 7 details are required: title, synopsis, director, cast (at least one person), year of release, genre and running time." → "Six details are required: title, synopsis, director, cast (at least one person), year of release and genre. Running time is optional."
+(6 flow(s) unchanged)
