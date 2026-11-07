@@ -475,23 +475,6 @@ export function serve({ dir, port, quiet = false }) {
     }
     if (req.method === 'GET' && url === '/api/ping') return json(res, 200, { app: 'im-a-pm', dir, pid: process.pid, viewerSeenMsAgo: lastSeen ? Date.now() - lastSeen : null });
     if (req.method === 'GET' && url === '/api/version') { lastSeen = Date.now(); return json(res, 200, { version: version(dir) }); }
-    if (req.method === 'POST' && url === '/api/requests') {
-      let body = '';
-      req.on('data', (c) => { body += c; if (body.length > 1e6) req.destroy(); });
-      req.on('end', () => {
-        try {
-          const r = JSON.parse(body);
-          if (!['ask', 'change', 'flag'].includes(r.kind) || !r.text) throw new Error('kind and text are required');
-          const reqDir = path.join(dir, 'requests');
-          fs.mkdirSync(reqDir, { recursive: true });
-          const name = `${new Date().toISOString().replace(/[:.]/g, '-')}-${r.kind}.json`;
-          const record = { kind: r.kind, flow: r.flow || null, node: r.node || null, text: String(r.text), createdAt: new Date().toISOString() };
-          fs.writeFileSync(path.join(reqDir, name), JSON.stringify(record, null, 2));
-          json(res, 201, { ok: true, file: path.join('.im-a-pm', 'requests', name) });
-        } catch (e) { json(res, 400, { ok: false, error: e.message }); }
-      });
-      return;
-    }
     res.writeHead(404); res.end();
   });
   return new Promise((resolve, reject) => {
@@ -499,7 +482,6 @@ export function serve({ dir, port, quiet = false }) {
     server.listen(port, '127.0.0.1', () => {
       if (!quiet) {
         console.log(`im-a-pm viewer: http://127.0.0.1:${port}/`);
-        console.log(`questions and change requests land in ${path.join(dir, 'requests')}/ (run /im-a-pm inbox)`);
       }
       resolve(server);
     });

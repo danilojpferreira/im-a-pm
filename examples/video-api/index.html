@@ -849,11 +849,11 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
   // The three things a PM does with a step. "Request a change" is the main action.
   const ACTIONS = {
     change: { icon: '✎', title: 'Request a change', blurb: 'Describe the new rule. Your agent changes the code on a branch, with tests, for engineers to review.', label: 'What should the rule be instead?',
-      ideas: ['Make this optional', 'Change the limit to …', 'Skip this for …', 'Remove this check'], send: 'Send change request' },
+      ideas: ['Make this optional', 'Change the limit to …', 'Skip this for …', 'Remove this check'] },
     ask: { icon: '?', title: 'Ask a question', blurb: 'Get an answer in plain words, checked against the code.', label: 'Your question',
-      ideas: ['Why does this rule exist?', 'What happens if …?', 'Which customers does this affect?'], send: 'Ask' },
+      ideas: ['Why does this rule exist?', 'What happens if …?', 'Which customers does this affect?'] },
     flag: { icon: '⚑', title: 'Flag as wrong', blurb: 'This step does not match how the product really behaves. Your agent re-checks it against the code.', label: 'What do you see instead?',
-      ideas: ['This does not happen in production', 'The real value is …', 'There is a step missing here'], send: 'Send report' },
+      ideas: ['This does not happen in production', 'The real value is …', 'There is a step missing here'] },
   };
   function actionsHtml(subject) {
     if (state.composer) return composerHtml(subject);
@@ -864,17 +864,16 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     const a = ACTIONS[state.composer];
     const viaAI = state.composer === 'ask' && aiAsk;
     const next = viaAI ? 'Claude answers here, using this map.'
-      : served ? 'Saved to <span class="mono">.im-a-pm/requests/</span>. Your agent picks it up with <span class="mono">/im-a-pm inbox</span>.'
-      : 'Copies a command. Paste it into your coding agent (Claude Code, Codex, Copilot, Cursor…) in the repository.';
+      : 'Copies the command above. Paste it in your agent (Claude Code, Codex, Copilot, Cursor…), in the repository.';
     return `<section class="act open ${state.composer}" aria-label="${esc(a.title)}">
       <div class="act-head"><span class="ic" aria-hidden="true">${a.icon}</span><div><b>${a.title}</b><small>${esc(subject.name)}</small></div><button type="button" class="linkish" id="composer-cancel">Cancel</button></div>
       ${state.composer === 'change' && subject.rule ? `<div class="current"><span class="eyebrow">Current rule</span>${esc(subject.rule)}</div>` : ''}
       <label for="composer-text">${a.label}</label>
       <textarea id="composer-text" placeholder="${esc(a.ideas[0])}"></textarea>
       <div class="ideas">${a.ideas.map((t) => `<button type="button" class="idea" data-idea="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-      ${!viaAI && !served ? '<div class="cmd" id="composer-cmd"></div>' : ''}
+      ${!viaAI ? '<div class="cmd" id="composer-cmd"></div>' : ''}
       <div class="next"><b>What happens next</b>${next}</div>
-      <button type="button" class="btn primary big" id="composer-send">${viaAI ? 'Ask Claude' : served ? a.send : 'Copy command'}</button>
+      <button type="button" class="btn primary big" id="composer-send">${viaAI ? 'Ask Claude' : '⧉ Copy command'}</button>
       <div class="toast" id="toast" role="status"></div>
     </section>`;
   }
@@ -937,17 +936,17 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     const toast = $('toast');
     if (!text) { toast.textContent = 'Write something first.'; return; }
     if (kind === 'ask' && aiAsk) { aiAsk(`About ${subject.name} (in the flow "${flowOf(state.flow).title}"): ${text}`); return; }
-    if (served) {
-      try {
-        const r = await fetch('/api/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, flow: state.flow, node: nodeId || null, text }) });
-        const j = await r.json(); if (!j.ok) throw new Error(j.error);
-        toast.textContent = 'Sent. Run /im-a-pm inbox in your coding agent to process it.';
-      } catch (e) { toast.textContent = `Could not send: ${e.message}`; }
-      return;
-    }
+    // Every request becomes a command the person pastes into their agent.
     const cmd = command(kind, state.flow, nodeId, text);
-    try { await navigator.clipboard.writeText(cmd); toast.textContent = 'Copied. Paste it into your coding agent.'; }
-    catch { const el = $('composer-cmd'); const sel = getSelection(); const rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg); toast.textContent = 'Select the command above and copy it.'; }
+    const btn = $('composer-send');
+    try {
+      await navigator.clipboard.writeText(cmd);
+      toast.textContent = 'Copied. Paste it in your agent.';
+      if (btn) { btn.textContent = '✓ Copied'; setTimeout(() => { if (btn.isConnected) btn.textContent = '⧉ Copy command'; }, 2000); }
+    } catch {
+      const el = $('composer-cmd'); const sel = getSelection(); const rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg);
+      toast.textContent = 'Your browser blocked copying. The command is selected: press Ctrl+C (⌘C on a Mac), then paste it in your agent.';
+    }
   }
 
   // ------------------------------------------------------------ routing

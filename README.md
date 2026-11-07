@@ -100,13 +100,14 @@ Every step, and every flow, ends with **What do you want to do?**
 | **Ask a question** | "Why does this exist?" or "What happens if the provider times out?" | The answer comes back in product language, checked against the code, and names the steps it relies on. |
 | **Flag as wrong** | What you see in the real product. | Your agent re-checks that step against the code, then fixes the map or explains why it is right. |
 
-Where the request goes depends on how the map is open:
-- **Served by im-a-pm** (the default after `build`, `sync` or `view`): it is saved in
-  `.im-a-pm/requests/`, and your agent processes it with `/im-a-pm inbox`.
-- **Opened as a plain file**: it becomes a ready-to-paste `/im-a-pm` command.
-- **Published as a [Claude artifact](https://claude.ai)**: *Ask* goes straight to Claude, and the
-  answer cites the steps, which light up on the chart. That same page also has a search box for
-  questions about any business rule.
+**Copy command** puts a ready-to-paste command on your clipboard, such as
+`/im-a-pm change place-order/attempts-left "Retry up to 5 times"`. Paste it in your agent (Claude
+Code, Codex, Copilot, Cursor…), in the repository. The command is also shown in the panel, so you
+can check it first.
+
+When the map is published as a [Claude artifact](https://claude.ai), *Ask* goes straight to
+Claude instead. The answer cites the steps, which light up on the chart, and that page also has a
+search box for questions about any business rule.
 
 ### Paths the code doesn't handle
 
@@ -211,7 +212,6 @@ Every command works as `/im-a-pm …` or `/imapm …`.
 | `view` | Opens the current map. |
 | `ask "<question>"` | Answers in product language, checked against the code, and names the steps involved. |
 | `change <flow>[/<step>] "<request>"` | Restates the rule (current → new) and lists the flows affected. It then implements the change on an `im-a-pm/<slug>` branch with tests, updates the map, and shows the behavioral diff. Nothing is pushed. |
-| `inbox` | Processes the questions, change requests and "flag as wrong" reports sent from the viewer. |
 | `diff [<base-ref>]` | Compares business behavior with another branch (by default, the main branch) and opens the map with the changes highlighted. |
 
 ## How it works

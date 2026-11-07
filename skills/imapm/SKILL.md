@@ -1,6 +1,6 @@
 ---
 name: imapm
-description: Short alias of the im-a-pm skill. Maps a codebase as business flows for product managers (every entrypoint as a flowchart of business decisions, with the functions behind each step), keeps the map in sync with the code, and opens it in the browser. Commands are /imapm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", inbox, and diff [<base-ref>].
+description: Short alias of the im-a-pm skill. Maps a codebase as business flows for product managers (every entrypoint as a flowchart of business decisions, with the functions behind each step), keeps the map in sync with the code, and opens it in the browser. Commands are /imapm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", and diff [<base-ref>].
 ---
 
 # imapm: alias of im-a-pm

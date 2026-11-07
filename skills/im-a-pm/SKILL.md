@@ -1,6 +1,6 @@
 ---
 name: im-a-pm
-description: Map a codebase as business flows for product managers. Every entrypoint (REST, GraphQL, queues, events, jobs, cron, sagas, webhooks) becomes a flowchart of business decisions from trigger to outcome, with the functions that run at each step in order, and the map is kept in sync with the code and opened in the browser. Use when someone asks how a feature or business rule works in product terms, wants a PM-readable map of the app, wants to update the map after code changes, wants to change a business rule from the map, or wants to see which business behavior a branch or PR changes. Commands are /im-a-pm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", inbox, and diff [<base-ref>]. /imapm is an alias.
+description: Map a codebase as business flows for product managers. Every entrypoint (REST, GraphQL, queues, events, jobs, cron, sagas, webhooks) becomes a flowchart of business decisions from trigger to outcome, with the functions that run at each step in order, and the map is kept in sync with the code and opened in the browser. Use when someone asks how a feature or business rule works in product terms, wants a PM-readable map of the app, wants to update the map after code changes, wants to change a business rule from the map, or wants to see which business behavior a branch or PR changes. Commands are /im-a-pm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", and diff [<base-ref>]. /imapm is an alias.
 ---
 
 # im-a-pm
@@ -24,7 +24,6 @@ Everything lives in `.im-a-pm/` at the repository root:
 | `.im-a-pm/flows.json` | The map, including `app.commit`, the commit it describes | **Yes** |
 | `.im-a-pm/index.html` | The rendered viewer (also served locally) | No |
 | `.im-a-pm/sync.json` | Report of the last `sync` | No |
-| `.im-a-pm/requests/*.json` | Questions and change requests sent from the viewer | No |
 | `.im-a-pm/base.json` | Map of the base ref, used by `diff` | No |
 | `.im-a-pm/view.json`, `server.json`, `server.log` | State of the local viewer server | No |
 
@@ -172,9 +171,11 @@ Goal: bring the map from `app.commit` up to HEAD by re-checking only what change
 
 ## /im-a-pm view
 
-Run `view`. It renders the current map and opens it. The served viewer sends questions, change
-requests and "flag as wrong" reports to `.im-a-pm/requests/`. Opened as a plain file, it
-copies a ready-to-paste `/im-a-pm` command instead.
+Run `view`. It renders the current map and opens it. In the viewer, "Ask", "Request a change" and
+"Flag as wrong" copy a ready-to-paste `/im-a-pm ask` or `/im-a-pm change` command. The person
+pastes it in their agent, and you handle it like any other command. A "Flag as wrong" arrives as
+`/im-a-pm ask "Check <flow>/<node>. A PM thinks this is wrong: …"`: re-check that step against
+the code, then either fix the map or explain why it is right.
 
 ## /im-a-pm ask "<question>"
 
@@ -201,16 +202,6 @@ push.
    map as a separate commit, so that `app.commit` points at the code it describes.
 6. Do not push unless the person asks. Show the behavioral diff against the original branch
    (`/im-a-pm diff <original-branch>`), which renders and opens the viewer.
-
-## /im-a-pm inbox
-
-Process `.im-a-pm/requests/*.json` (written by the served viewer), oldest first:
-- `kind: "ask"` works like `/im-a-pm ask`.
-- `kind: "change"` works like `/im-a-pm change`.
-- `kind: "flag"` means a PM believes a node is wrong. Re-check that node against the code, and
-  either fix the map or explain why it is right.
-
-Move each handled file to `.im-a-pm/requests/done/`.
 
 ## /im-a-pm diff [<base-ref>]
 
