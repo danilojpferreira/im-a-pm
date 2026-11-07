@@ -179,6 +179,9 @@ details.collapse > summary { cursor: pointer; color: var(--muted); font-weight: 
 .links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .linkbtn { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--external-line); color: var(--ink); background: var(--external-bg); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
 .linkbtn:hover { border-style: solid; }
+.linkbtn .count { font-weight: 500; opacity: .75; }
+.linkmore { border: 1px dashed var(--line); background: none; color: var(--muted); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
+.linkmore:hover { color: var(--ink); border-color: var(--ink); }
 .askbox { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .askform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .askform input { flex: 1 1 280px; min-width: 0; padding: 9px 12px; border: 1.5px solid var(--accent); border-radius: 8px; background: var(--surface); }
@@ -802,6 +805,30 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     return out;
   }
 
+  // "Starts when": the steps of other flows that hand off to this one. Many flows can feed one
+  // (a saga that reacts to every report update), so the list starts grouped by flow and short.
+  const STARTS_LIMIT = 3;
+  function startsWhenHtml(f) {
+    if (!f.trigger?.channel) return '';
+    const em = emitters.get(f.trigger.channel) || [];
+    if (!em.length) return `<div class="links"><span class="muted">Starts when</span><span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span></div>`;
+    const chip = (flowId, nodeIds, text, tip = '') => `<button type="button" class="linkbtn" data-goflow="${esc(flowId)}" data-gonode="${esc(nodeIds.join(','))}"${tip ? ` title="${esc(tip)}"` : ''}>↰ ${text}</button>`;
+    if (em.length <= STARTS_LIMIT || state.startsOpen) {
+      const all = em.map((x) => chip(x.flow.id, [x.node.id], `${esc(x.flow.title)}: ${esc(x.node.label)}`)).join('');
+      const less = em.length > STARTS_LIMIT ? '<button type="button" class="linkmore" data-starts="less">Show less</button>' : '';
+      return `<div class="links"><span class="muted">Starts when</span>${all}${less}</div>`;
+    }
+    const groups = new Map();
+    for (const x of em) (groups.get(x.flow.id) || groups.set(x.flow.id, { flow: x.flow, nodes: [] }).get(x.flow.id)).nodes.push(x.node);
+    const list = [...groups.values()];
+    // Collapsed: one short chip per flow (the steps are in the tooltip and in "show all").
+    const shown = list.slice(0, STARTS_LIMIT).map((gr) => chip(gr.flow.id, gr.nodes.map((n) => n.id),
+      `${esc(gr.flow.title)}${gr.nodes.length > 1 ? ` <span class="count">· ${gr.nodes.length} steps</span>` : ''}`,
+      gr.nodes.map((n) => n.label).join('\n'))).join('');
+    const hiddenFlows = list.length - Math.min(list.length, STARTS_LIMIT);
+    const more = `<button type="button" class="linkmore" data-starts="more" title="Show every step that starts this flow">${hiddenFlows ? `+${hiddenFlows} more flow${hiddenFlows > 1 ? 's' : ''} · ` : ''}show all ${em.length} steps</button>`;
+    return `<div class="links"><span class="muted">Starts when</span>${shown}${more}</div>`;
+  }
   function drawFlowHead() {
     const f = flowOf(state.flow);
     const outcomes = f.nodes.filter((n) => n.type === 'outcome');
@@ -818,10 +845,11 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     ];
     $('flowhead').innerHTML = `<div class="meta"><span class="eyebrow">${esc(f.domain || '')}</span>${f.actor ? `<span>Started by <b>${esc(f.actor)}</b></span>` : ''}<span class="trigger">${esc(f.trigger?.kind || '')} · ${esc(f.trigger?.signature || '')}</span></div>
       <h2>${esc(f.title)}</h2>${f.summary ? `<p>${esc(f.summary)}</p>` : ''}
-      ${f.trigger?.channel ? `<div class="links"><span class="muted">Starts when</span>${(emitters.get(f.trigger.channel) || []).map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.flow.id)}" data-gonode="${esc(x.node.id)}">↰ ${esc(x.flow.title)}: ${esc(x.node.label)}</button>`).join('') || `<span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span>`}</div>` : ''}
+      ${startsWhenHtml(f)}
       <div class="paths" role="group" aria-label="Paths">${chips.join('')}</div>
       ${notes.length ? `<details class="collapse" ${changes.length || findings.length <= 2 ? 'open' : ''}><summary>${changes.length ? `${changes.length} change${changes.length > 1 ? 's' : ''}` : ''}${changes.length && findings.length ? ' · ' : ''}${findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : ''}</summary><div class="notes" style="margin-top:6px">${notes.join('')}</div></details>` : ''}`;
-    $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, [b.dataset.gonode])));
+    $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, b.dataset.gonode.split(','))));
+    $('flowhead').querySelectorAll('[data-starts]').forEach((b) => b.addEventListener('click', () => { state.startsOpen = b.dataset.starts === 'more'; drawFlowHead(); }));
     $('flowhead').querySelectorAll('.pathbtn').forEach((b) => b.addEventListener('click', () => { state.path = b.dataset.p; drawFlowHead(); drawCanvas(false); }));
     $('flowhead').querySelectorAll('.note[data-f]').forEach((b) => b.addEventListener('click', () => { const x = findings[+b.dataset.f]; if (x.nodes?.[0]) { state.node = x.nodes[0]; drawCanvas(false); reveal(state.node); drawInspector(); } }));
   }
@@ -952,7 +980,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
   // ------------------------------------------------------------ routing
   function select(id, fromHash, highlight) {
     if (!flowOf(id)) id = allFlowIds[0];
-    state.flow = id; state.node = null; state.path = 'all'; state.composer = null;
+    state.flow = id; state.node = null; state.path = 'all'; state.composer = null; state.startsOpen = false;
     state.hl = new Set(highlight || []);
     if (highlight?.length === 1 && highlight[0] !== 'start') state.node = highlight[0];
     if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', `#${id}`);
