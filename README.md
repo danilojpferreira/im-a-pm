@@ -1,8 +1,8 @@
 # im-a-pm
 
 **See your codebase the way a product manager does.** im-a-pm is an agent skill. It turns a
-repository into a map of its business flows: every API route, queue worker, event handler, saga
-and cron job becomes a flowchart. Each flowchart runs from the trigger, through the business
+repository into a map of its business flows: every API route, screen, queue worker, event
+handler, saga and cron job becomes a flowchart. Each flowchart runs from the trigger, through the business
 decisions, to what the user gets back. You can ask questions about it, request changes from it,
 and see which business rules a branch changes.
 
@@ -31,6 +31,7 @@ npx github:danilojpferreira/im-a-pm install   # once, for every agent you use
   - [Paths the code doesn't handle](#paths-the-code-doesnt-handle)
   - [Loops and retries](#loops-and-retries)
   - [Parallel work and batches](#parallel-work-and-batches)
+  - [Screens and the API they call](#screens-and-the-api-they-call)
 - [Install](#install)
 - [Commands](#commands)
 - [How it works](#how-it-works)
@@ -58,6 +59,7 @@ changes, `/im-a-pm sync` re-checks only the steps whose code changed.
 
 These screenshots come from [`examples/shop`](examples/shop), a small order system that uses
 everything below. Every build, sync, change or diff opens the viewer in your browser by itself.
+**Star** and **Report**, top right, open this project on GitHub to star it or open an issue.
 
 Click any step and its arrows, in and out, are highlighted while the rest fade. Click empty space
 to clear the selection. Where a flow forks or branches merge back together, each arrow has its
@@ -146,6 +148,37 @@ includes the steps it repeats, both in the viewer and in `trace`.
 The findings point out what this structure hides. Here: a retry asks every warehouse again,
 including the ones that already accepted, so one failure can create duplicate shipments. And
 when an invoice fails, the batch isn't marked as invoiced, so customers get duplicate invoices.
+
+### Screens and the API they call
+
+<img alt="The 'Pay for the order' flow of the shop's web app: the address check, the double-submit guard, the call to the API, and what the screen shows for each answer. The selected step says it continues in 'Place an order'" src="docs/frontend.png">
+
+A web or mobile frontend is mapped the same way. A flow starts when a page opens or a person
+uses a control, and ends with what they see: a page, a message, a toast. The decisions are the
+ones that matter to the product: who may see the page, form rules, limits, feature flags, what
+happens on each answer from the API. Layout and styling are left out.
+
+When a screen calls the API, the step lists the route it calls (`http:POST /orders`). If that
+route is in the same repository, the two are linked: the screen's step **continues in** the API
+flow, and the API flow says it is **Called from** the screen. `trace --follow` reads straight
+through, from the button press to the database and back. In a monorepo, each flow names the app
+it belongs to (`web`, `mobile`, `api`), and the sidebar groups them.
+
+<img align="right" width="300" alt="The decision 'Is the cart $99 or more?' on the checkout screen, with an inconsistency finding: the API gives free shipping from $100" src="docs/frontend-rule.png">
+
+Mapping both sides finds the rules that drifted apart. In the shop, the checkout screen promises
+free shipping from **$99**, while the API gives it from **$100**: a $99.50 cart is told shipping
+is free, then charged $7.90. The same map shows that:
+
+- the Pay button shows the total without shipping
+- after "card charged, but no order saved" the screen says *please try again*, which charges the
+  card twice
+- the 5-digit postal code rule shuts out every Canadian customer, though the shop ships to Canada
+- a failed request leaves the Pay button disabled for good, with no message
+
+None of these is visible from the screen's code or the API's code alone.
+
+<br clear="right">
 
 ## Install
 
@@ -277,6 +310,9 @@ Entrypoints across common stacks:
 - queue workers: BullMQ, Sidekiq, Celery
 - sagas and workflows: Temporal, Step Functions, NestJS CQRS sagas
 - CLI commands
+- frontends: pages and user actions in React Router, Next.js, Remix, SvelteKit, Nuxt, Vue,
+  Angular and React Native/Expo, linked to the API routes they call
+- monorepos: one map for the whole repository, each flow tagged with its app
 
 The guide the agent follows is
 [`skills/im-a-pm/reference/entrypoints.md`](skills/im-a-pm/reference/entrypoints.md).
@@ -288,7 +324,7 @@ containers, validation pipes, exception mappers, ORM query filters and config fl
 | Example | What it is | Look at |
 |---|---|---|
 | [`examples/video-api`](examples/video-api) | A real Spring Boot API, mapped end to end: a build, a change request that went through tests, and a sync after a teammate's commit. | `sync-report.txt`, `diff.txt`, `trace-publish-video.txt` |
-| [`examples/shop`](examples/shop) | A small order system written for these docs, with a payment retry loop, parallel shipping, nightly batches, and paths the code doesn't handle. The map was written by hand for the docs; every line reference points at the code in `src/`. | `index.html` with **Show changes** on, `change-v1-to-now.diff` |
+| [`examples/shop`](examples/shop) | A small order system written for these docs: a React checkout and the API behind it, with a payment retry loop, parallel shipping, nightly batches, and paths the code doesn't handle. The map was written by hand for the docs; every line reference points at the code in `src/`. | `index.html` with **Show changes** on, `change-v1-to-now.diff` |
 
 Open either `index.html` in a browser.
 
@@ -328,9 +364,10 @@ Run it with `npx github:danilojpferreira/im-a-pm <command>`, or with
 - **Your code stays with you.** The script runs locally and the viewer is served on
   `127.0.0.1`. The only thing that reads your code is the agent you already use.
 
-**Status: version 0.4.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
+**Status: version 0.5.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
 Loops, parallel work, batches and unhandled paths are covered by tests and the shop example, but
-haven't yet been mapped from a large real codebase with queues and sagas. The CLI is tested on
+haven't yet been mapped from a large real codebase with queues and sagas. The same goes for
+frontends and monorepos, so far covered only by the shop example. The CLI is tested on
 Linux, and CI also runs on macOS. Opening the browser on Windows and WSL is implemented but not
 tested yet. Issues and examples from real codebases are very welcome.
 

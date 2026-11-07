@@ -1,13 +1,13 @@
 // Run: node examples/shop/make-map.mjs
 // Builds examples/shop/flows.json (current code) and base.json (the version before free shipping
-// and nightly invoicing existed). Every line number is looked up in the real source files.
+// and nightly invoicing existed). The API is in src/, the web checkout in web/. Every line number is looked up in the real source files.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const cache = {};
-const lines = (f) => (cache[f] ||= fs.readFileSync(path.join(ROOT, 'src', f), 'utf8').split('\n'));
+const lines = (f) => (cache[f] ||= fs.readFileSync(path.join(ROOT, f), 'utf8').split('\n'));
 const L = (f, snip, from = 0) => {
   const i = lines(f).findIndex((l, k) => k >= from && l.includes(snip));
   if (i < 0) throw new Error(`"${snip}" not found in ${f}`);
@@ -23,17 +23,18 @@ const R = (f, snip) => {
   }
   throw new Error(`unbalanced block at ${f}:${start}`);
 };
-const F = (f) => `src/${f}`;
+const F = (f) => f;
 const S = (f, snip, endSnip) => { const a = L(f, snip); return [a, L(f, endSnip, a - 1)]; };
 const call = (fn, f, range, depth, extra = {}) => ({ fn, file: F(f), line: Array.isArray(range) ? range[0] : range, ...(Array.isArray(range) && range[1] !== range[0] ? { endLine: range[1] } : {}), depth, ...extra });
 const at = (f, snip) => [{ file: F(f), line: L(f, snip) }];
 
-const APP = 'app.js', AUTH = 'lib/auth.js', PO = 'orders/place-order.js', FO = 'fulfillment/fulfill-order.js', NI = 'invoicing/nightly-invoices.js';
+const APP = 'src/app.js', AUTH = 'src/lib/auth.js', PO = 'src/orders/place-order.js', FO = 'src/fulfillment/fulfill-order.js', NI = 'src/invoicing/nightly-invoices.js';
+const WMAIN = 'web/src/main.jsx', WAUTH = 'web/src/auth.js', WAPI = 'web/src/api.js', WCART = 'web/src/cart.js', WSCHEMA = 'web/src/checkout-schema.js', WCO = 'web/src/pages/Checkout.jsx';
 const placeOrder = R(PO, 'export async function placeOrder');
 
 // ------------------------------------------------------------------ checkout
 const checkout = {
-  id: 'place-order', title: 'Place an order', domain: 'Checkout', actor: 'Customer',
+  id: 'place-order', surface: 'api', title: 'Place an order', domain: 'Checkout', actor: 'Customer',
   trigger: { kind: 'http', signature: 'POST /orders', anchors: at(APP, "app.post('/orders'") },
   summary: 'A signed-in customer checks out their cart. Stock is checked, shipping is added, the card is charged (with retries), the order is saved and sent to shipping.',
   nodes: [
@@ -95,12 +96,13 @@ const checkout = {
     { kind: 'gap', text: 'Stock is checked but not reserved, so two customers can both buy the last unit.', nodes: ['in-stock'] },
     { kind: 'risk', text: 'Any payment answer other than "approved" or "declined" (for example "pending review") is retried, which may charge the customer again.', nodes: ['approved'] },
     { kind: 'gap', text: 'An inventory timeout shows the customer a generic error page instead of a message.', nodes: ['inventory-down'] },
+    { kind: 'inconsistency', text: 'The checkout screen promises free shipping from $99 (see "Open the checkout"), but this rule gives it from $100. A $99.50 cart is told shipping is free, then charged $7.90.', nodes: ['free-shipping'] },
   ],
 };
 
 // ------------------------------------------------------------------ fulfillment (parallel)
 const fulfill = {
-  id: 'ship-order', title: 'Ship a paid order', domain: 'Shipping', actor: 'Queue worker',
+  id: 'ship-order', surface: 'api', title: 'Ship a paid order', domain: 'Shipping', actor: 'Queue worker',
   trigger: { kind: 'job', signature: 'Worker "fulfillment" (5 attempts, exponential backoff)', channel: 'queue:fulfillment', anchors: at(APP, "new Worker('fulfillment'") },
   summary: 'Runs for every paid order. Each warehouse holding items gets its shipment request at the same time. When all have accepted, the order is marked shipped and the customer gets the tracking links.',
   nodes: [
@@ -143,7 +145,7 @@ const fulfill = {
 
 // ------------------------------------------------------------------ invoicing (batches + loop)
 const invoicing = {
-  id: 'invoice-nightly', title: 'Invoice the day\'s orders', domain: 'Billing', actor: 'Scheduler',
+  id: 'invoice-nightly', surface: 'api', title: 'Invoice the day\'s orders', domain: 'Billing', actor: 'Scheduler',
   trigger: { kind: 'cron', signature: '0 2 * * * (every day at 02:00)', anchors: at(APP, 'cron.schedule(') },
   summary: 'Every night, orders without an invoice are invoiced in batches of 100. Within a batch, all invoices are issued at the same time.',
   nodes: [
@@ -180,28 +182,120 @@ const invoicing = {
   ],
 };
 
+// ------------------------------------------------------------------ web: checkout screen
+const openCheckout = {
+  id: 'open-checkout', surface: 'web', title: 'Open the checkout', domain: 'Checkout', actor: 'Customer',
+  trigger: { kind: 'page', signature: '/checkout', anchors: at(WMAIN, "path: '/checkout'") },
+  summary: 'What the customer sees on the checkout page: sent to sign in, an empty cart, or the payment form with a free-shipping banner.',
+  nodes: [
+    { id: 'start', type: 'start', label: 'Customer opens the checkout', calls: [call('createBrowserRouter /checkout', WMAIN, L(WMAIN, "path: '/checkout'"), 0, { kind: 'framework', note: 'React Router runs the requireCustomer loader, then renders CheckoutPage' })] },
+    { id: 'signed-in', type: 'decision', label: 'Is the customer signed in?', rule: 'Signed-out visitors are sent to sign in, and come back to the checkout afterwards.', anchors: at(WAUTH, 'if (!session.token())'), confidence: 'high',
+      calls: [call('requireCustomer', WAUTH, R(WAUTH, 'export function requireCustomer'), 0, { kind: 'framework', note: 'route loader' })] },
+    { id: 'read-cart', type: 'data', label: 'Read the cart saved in the browser', data: { op: 'read', entity: 'Cart' }, rule: 'The cart lives in the browser until the order is placed.', anchors: at(WCART, "localStorage.getItem('cart'"), confidence: 'high',
+      calls: [call('CheckoutPage', WCO, R(WCO, 'export function CheckoutPage'), 0), call('useCart', WCART, R(WCART, 'export function useCart'), 1)] },
+    { id: 'has-items', type: 'decision', label: 'Does the cart have items?', rule: 'An empty cart shows a message and a link back to the shop instead of the form.', anchors: at(WCO, 'cart.items.length === 0'), confidence: 'high',
+      calls: [call('CheckoutPage (empty cart)', WCO, R(WCO, 'if (cart.items.length === 0)'), 1)] },
+    { id: 'free-shipping', type: 'decision', label: 'Is the cart $99 or more?', rule: 'The banner promises free shipping from $99. Under that, it says how much more to add.', anchors: at(WCO, 'const FREE_SHIPPING_FROM'), confidence: 'high',
+      calls: [call('CheckoutPage (banner)', WCO, [L(WCO, 'const freeShipping ='), L(WCO, 'for free shipping</p>')], 1, { note: 'FREE_SHIPPING_FROM = 99' })] },
+    { id: 'shown-free', type: 'outcome', label: 'Checkout says "Free shipping on this order"', result: 'success', anchors: at(WCO, 'Free shipping on this order'), confidence: 'high' },
+    { id: 'shown-fee', type: 'outcome', label: 'Checkout says "Add $X for free shipping"', result: 'success', anchors: at(WCO, 'for free shipping</p>'), confidence: 'high' },
+    { id: 'to-login', type: 'outcome', label: 'Sent to sign in', result: 'rejected', response: 'redirect to /login?next=/checkout', anchors: at(WAUTH, 'return redirect('), confidence: 'high' },
+    { id: 'empty', type: 'outcome', label: 'Shows "Your cart is empty"', result: 'rejected', anchors: at(WCO, 'Your cart is empty'), confidence: 'high' },
+  ],
+  edges: [
+    { from: 'start', to: 'signed-in' },
+    { from: 'signed-in', to: 'read-cart', label: 'Yes' }, { from: 'signed-in', to: 'to-login', label: 'No' },
+    { from: 'read-cart', to: 'has-items' },
+    { from: 'has-items', to: 'free-shipping', label: 'Yes' }, { from: 'has-items', to: 'empty', label: 'No' },
+    { from: 'free-shipping', to: 'shown-free', label: 'Yes' }, { from: 'free-shipping', to: 'shown-fee', label: 'No' },
+  ],
+  happyPath: 'shown-free',
+  outcomes: { 'shown-fee': 'Under $99', 'to-login': 'Not signed in', empty: 'Empty cart' },
+  findings: [
+    { kind: 'inconsistency', text: 'The screen promises free shipping from $99, but the API ("Place an order") gives it from $100. A $99.50 cart is told shipping is free, then charged $7.90.', nodes: ['free-shipping'] },
+  ],
+};
+
+// ------------------------------------------------------------------ web: Pay button
+const payOrder = {
+  id: 'pay-for-order', surface: 'web', title: 'Pay for the order', domain: 'Checkout', actor: 'Customer',
+  trigger: { kind: 'ui', signature: 'Pay button on /checkout', anchors: at(WCO, 'onSubmit={form.handleSubmit(pay)}') },
+  summary: 'The customer presses Pay. The address is checked on the screen, the order is sent to the API, and the screen reacts to its answer.',
+  nodes: [
+    { id: 'start', type: 'start', label: 'Customer presses Pay', calls: [call('form.handleSubmit(pay)', WCO, L(WCO, 'onSubmit={form.handleSubmit(pay)}'), 0, { kind: 'framework', note: 'react-hook-form validates with the zod schema before calling pay' })] },
+    { id: 'address-valid', type: 'decision', label: 'Is the delivery address complete?', rule: 'Name required, street of 3+ characters, a 5-digit postal code, and a country of US or Canada.', anchors: at(WSCHEMA, 'export const addressSchema'), confidence: 'high',
+      calls: [call('addressSchema', WSCHEMA, S(WSCHEMA, 'export const addressSchema', '});'), 1, { kind: 'validation', note: 'zod, via zodResolver' })] },
+    { id: 'already-sending', type: 'decision', label: 'Is the order already being sent?', rule: 'The Pay button is disabled while the order is sent, and a second press is ignored. This stops double orders from a double click.', anchors: at(WCO, 'if (sending) return'), confidence: 'high',
+      calls: [call('pay', WCO, R(WCO, 'async function pay(address)'), 0), call('pay (double-submit guard)', WCO, L(WCO, 'if (sending) return'), 1)] },
+    { id: 'send-order', type: 'action', label: 'Send the order to the API', rule: 'The Pay button stays disabled until the API answers.', anchors: at(WCO, 'await placeOrder(address)'), confidence: 'high',
+      calls: [call('setSending(true)', WCO, L(WCO, 'setSending(true)'), 1), call('placeOrder', WAPI, R(WAPI, 'export async function placeOrder'), 1), call('fetch POST /orders', WAPI, L(WAPI, "fetch('/orders'"), 2, { kind: 'call', note: 'sends the address and the session token' })],
+      emits: [{ channel: 'http:POST /orders', label: 'the cart is read from the session on the API' }] },
+    { id: 'answer', type: 'decision', label: 'What did the API answer?', rule: 'Each answer is handled by its status code. Any code not listed gets the same generic message.', anchors: at(WCO, 'if (status === 201)'), confidence: 'high',
+      calls: [call('pay (status handling)', WCO, S(WCO, 'if (status === 201)', "toast.error('Something went wrong"), 1)] },
+    { id: 'confirmation', type: 'outcome', label: 'Order confirmation page', result: 'success', response: '/orders/:id/confirmation', anchors: at(WCO, 'if (status === 201)'), confidence: 'high' },
+    { id: 'to-login', type: 'outcome', label: 'Sent to sign in', result: 'rejected', response: 'redirect to /login?next=/checkout', anchors: at(WCO, 'if (status === 401)'), confidence: 'high' },
+    { id: 'declined', type: 'outcome', label: 'Toast: "Your card was declined. Try another card."', result: 'rejected', anchors: at(WCO, 'if (status === 402)'), confidence: 'high' },
+    { id: 'conflict', type: 'outcome', label: 'Toast with the API\'s message (an item is out of stock)', result: 'rejected', anchors: at(WCO, 'if (status === 409)'), confidence: 'high' },
+    { id: 'try-again', type: 'outcome', label: 'Toast: "Something went wrong, please try again."', result: 'error',
+      rule: 'Shown for every other answer: an empty cart (400), payments unavailable (503), and the generic 500, including when the card was charged but the order was not saved.', anchors: at(WCO, "toast.error('Something went wrong"), confidence: 'high' },
+    { id: 'address-errors', type: 'outcome', label: 'Errors shown under the address fields', result: 'rejected', anchors: at(WSCHEMA, 'export const addressSchema'), confidence: 'high' },
+    { id: 'ignored', type: 'outcome', label: 'Nothing happens: already paying', result: 'rejected', anchors: at(WCO, 'if (sending) return'), confidence: 'high' },
+    { id: 'stuck', type: 'outcome', label: 'Pay button stays disabled, no message', result: 'error', implicit: true,
+      rule: 'If the request itself fails (offline, timeout), the error is not caught. The button is never enabled again and the customer is not told anything. Reloading the page is the only way out.', anchors: at(WCO, 'await placeOrder(address)'), confidence: 'medium' },
+  ],
+  edges: [
+    { from: 'start', to: 'address-valid' },
+    { from: 'address-valid', to: 'already-sending', label: 'Yes' }, { from: 'address-valid', to: 'address-errors', label: 'No' },
+    { from: 'already-sending', to: 'send-order', label: 'No' }, { from: 'already-sending', to: 'ignored', label: 'Yes' },
+    { from: 'send-order', to: 'answer' }, { from: 'send-order', to: 'stuck', label: 'Network fails', implicit: true },
+    { from: 'answer', to: 'confirmation', label: '201' }, { from: 'answer', to: 'to-login', label: '401' },
+    { from: 'answer', to: 'declined', label: '402' }, { from: 'answer', to: 'conflict', label: '409' },
+    { from: 'answer', to: 'try-again', label: 'Anything else' },
+  ],
+  happyPath: 'confirmation',
+  outcomes: { 'to-login': 'Session expired', declined: 'Card declined', conflict: 'Out of stock', 'try-again': 'Any other error', 'address-errors': 'Address incomplete', ignored: 'Pressed twice', stuck: 'Network fails' },
+  findings: [
+    { kind: 'risk', text: 'When the API charged the card but could not save the order, the screen says "please try again". Trying again charges the card a second time.', nodes: ['try-again'] },
+    { kind: 'surprise', text: 'The Pay button shows the cart total without shipping. Under $100 the card is charged $7.90 more than the button says.', nodes: ['send-order'] },
+    { kind: 'gap', text: 'The shop ships to Canada, but the postal code must be 5 digits. No Canadian postal code (like K1A 0B1) can pass, so Canadian customers cannot check out.', nodes: ['address-valid'] },
+    { kind: 'gap', text: 'If the request fails, the Pay button stays disabled and the customer is told nothing.', nodes: ['stuck'] },
+  ],
+};
+
 const head = {
   version: 1,
-  app: { name: 'Shop', summary: 'Customers check out a cart and pay by card. Paid orders ship from one or more warehouses, and every night the day\'s orders are invoiced.', repo: 'examples/shop', ref: 'main', commit: null, generatedAt: '2026-11-08T10:00:00Z' },
+  app: { name: 'Shop', summary: 'Customers check out a cart on the web app and pay by card. Paid orders ship from one or more warehouses, and every night the day\'s orders are invoiced.', repo: 'examples/shop', ref: 'main', commit: null, generatedAt: '2026-11-08T10:00:00Z' },
   glossary: [
     { term: 'Order', meaning: 'A paid cart. Created only after the card is charged.' },
     { term: 'Shipment', meaning: 'What one warehouse sends for an order. An order can have several.' },
     { term: 'Invoice', meaning: 'Issued every night for the previous day\'s orders.' },
   ],
   excluded: [],
-  flows: [checkout, fulfill, invoicing],
+  flows: [openCheckout, payOrder, checkout, fulfill, invoicing],
 };
 
 // The previous version: flat $7.90 shipping, and no nightly invoicing yet.
 const base = JSON.parse(JSON.stringify(head));
 base.app.ref = 'v1';
 base.flows = base.flows.filter((f) => f.id !== 'invoice-nightly');
-const c = base.flows[0];
+const c = base.flows.find((f) => f.id === 'place-order');
 c.nodes = c.nodes.filter((n) => !['free-shipping', 'no-fee'].includes(n.id));
 c.nodes.find((n) => n.id === 'add-fee').rule = 'Every order pays $7.90 shipping.';
 c.edges = c.edges.filter((e) => !['free-shipping', 'no-fee'].includes(e.from) && e.to !== 'free-shipping');
 c.edges.splice(c.edges.findIndex((e) => e.from === 'in-stock' && e.label === 'Yes'), 0, { from: 'in-stock', to: 'add-fee', label: 'Yes' });
+c.findings = c.findings.filter((f) => f.kind !== 'inconsistency');
 c.summary = 'A signed-in customer checks out their cart. Stock is checked, shipping is added, the card is charged (with retries), the order is saved and sent to shipping.';
+
+// v1's checkout screen had no free-shipping banner.
+const w = base.flows.find((f) => f.id === 'open-checkout');
+w.nodes = w.nodes.filter((n) => !['free-shipping', 'shown-fee'].includes(n.id));
+Object.assign(w.nodes.find((n) => n.id === 'shown-free'), { label: 'Checkout form shown' });
+w.edges = w.edges.filter((e) => e.from !== 'free-shipping');
+w.edges.find((e) => e.from === 'has-items' && e.label === 'Yes').to = 'shown-free';
+delete w.outcomes['shown-fee'];
+w.findings = [];
+w.summary = 'What the customer sees on the checkout page: sent to sign in, an empty cart, or the payment form.';
+base.flows.find((f) => f.id === 'pay-for-order').findings.find((f) => f.kind === 'surprise').text = 'The Pay button shows the cart total without shipping. The card is always charged $7.90 more than the button says.';
 
 fs.writeFileSync(path.join(ROOT, 'flows.json'), JSON.stringify(head, null, 2) + '\n');
 fs.writeFileSync(path.join(ROOT, 'base.json'), JSON.stringify(base, null, 2) + '\n');

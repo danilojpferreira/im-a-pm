@@ -92,11 +92,19 @@ button, input, textarea { font: inherit; color: inherit; }
 .about { flex: 1 1 auto; min-width: 0; color: var(--muted); }
 .stats { display: flex; gap: 14px; align-items: baseline; flex: none; font-size: var(--step--1); color: var(--muted); }
 .stats b { font-family: var(--font-display); font-size: var(--step-1); color: var(--ink); font-variant-numeric: tabular-nums; }
+/* Links back to the im-a-pm project on GitHub. */
+.gh { display: flex; gap: 6px; flex: none; align-self: center; }
+.gh a { display: inline-flex; align-items: center; gap: 5px; padding: 3px 10px; border: 1px solid var(--line); border-radius: 999px; font-size: var(--step--1); font-weight: 600; color: var(--muted); text-decoration: none; background: var(--surface); }
+.gh a:hover { color: var(--ink); border-color: var(--muted); }
+.gh a.star:hover svg { fill: #d4a017; stroke: #d4a017; }
+.gh svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 /* One-line text that expands on click. */
-.clamp { display: block; border: 0; background: none; padding: 0; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.clamp.open { white-space: normal; }
-.clamp.fits { cursor: default; }
-.clamp:not(.fits):hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+.clampbox { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.clampbox .clamp-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clampbox.open { display: block; }
+.clampbox.open .clamp-t { white-space: normal; }
+.clampbox.open .more-link { margin-left: 6px; }
+.more-link { flex: none; border: 0; background: none; padding: 0; font: inherit; font-size: var(--step--1); font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 720px) { .top { flex-wrap: wrap; } .about { flex-basis: 100%; order: 3; } }
 
 .compare { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 12px; background: var(--chg-bg); border: 1px solid var(--chg); border-radius: 8px; }
@@ -114,6 +122,9 @@ button, input, textarea { font: inherit; color: inherit; }
 .index input[type=search] { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
 .flowlist { overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .domain { padding: 10px 8px 4px; }
+.surface { margin: 12px 4px 0; padding: 6px 4px 4px; border-top: 1px solid var(--line); font-family: var(--font-display); font-weight: 700; font-size: var(--step-0); }
+.surface:first-child { margin-top: 0; border-top: 0; }
+.surface-chip { font-size: 0.7rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; padding: 1px 7px; border-radius: 4px; background: var(--accent-soft); color: var(--accent); }
 .flowbtn { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 8px; width: 100%; text-align: left; padding: 8px; border: 0; border-radius: 6px; background: transparent; cursor: pointer; }
 .flowbtn:hover { background: var(--bg); }
 .flowbtn[aria-current="true"] { background: var(--accent-soft); }
@@ -134,7 +145,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .flowhead h2 { font-size: var(--step-2); }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; color: var(--muted); }
 .trigger { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
-.flowhead .fsum { color: var(--ink); max-width: 100%; }
+.flowhead .fsum { color: var(--ink); }
 .paths { display: flex; flex-wrap: wrap; gap: 6px; }
 .pathbtn .t, .linkbtn .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .pathbtn { max-width: 300px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); }
@@ -379,12 +390,28 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
 
   const state = { flow: null, node: null, path: 'all', showChanges: !!diff, composer: null, q: '', hl: new Set() };
   let aiAsk = null; // set when the page can ask Claude
+  // Hand-offs between flows: queues, events, sagas, and screens calling the API. An HTTP flow is
+  // started by `http:METHOD /path`; routes match with their parameters normalized.
+  const normalizeHttp = (text) => {
+    const m = String(text || '').trim().match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+)/i);
+    if (!m) return null;
+    let route = m[2].split('?')[0].replace(/\/+$/, '') || '/';
+    if (!route.startsWith('/')) route = '/' + route;
+    return `http:${m[1].toUpperCase()} ${route.replace(/\{[^}]+\}|:[A-Za-z_]\w*|\[[^\]]+\]/g, ':param')}`;
+  };
+  const normalizeChannel = (c) => (String(c || '').startsWith('http:') ? normalizeHttp(c.slice(5)) || c : c);
+  const channelOf = (f) => (f.trigger?.channel ? normalizeChannel(f.trigger.channel) : f.trigger?.kind === 'http' ? normalizeHttp(f.trigger.signature) : null);
   const consumers = new Map(), emitters = new Map();
   for (const f of head.flows) {
-    if (f.trigger?.channel) (consumers.get(f.trigger.channel) || consumers.set(f.trigger.channel, []).get(f.trigger.channel)).push(f);
-    for (const n of f.nodes) for (const e of n.emits || []) (emitters.get(e.channel) || emitters.set(e.channel, []).get(e.channel)).push({ flow: f, node: n });
+    const c = channelOf(f);
+    if (c) (consumers.get(c) || consumers.set(c, []).get(c)).push(f);
+    for (const n of f.nodes) for (const e of n.emits || []) { const k = normalizeChannel(e.channel); (emitters.get(k) || emitters.set(k, []).get(k)).push({ flow: f, node: n }); }
   }
-  const nextFlows = (n) => (n.emits || []).flatMap((e) => consumers.get(e.channel) || []);
+  const nextFlows = (n) => (n.emits || []).flatMap((e) => consumers.get(normalizeChannel(e.channel)) || []);
+  // Monorepos: flows are grouped by surface (web, mobile, api…) when there is more than one.
+  const SURFACE_NAMES = { web: 'Web app', mobile: 'Mobile app', api: 'API', admin: 'Admin', worker: 'Workers', backend: 'Backend', frontend: 'Frontend' };
+  const surfaceName = (sf) => SURFACE_NAMES[sf] || (sf ? sf[0].toUpperCase() + sf.slice(1) : '');
+  const surfaces = [...new Set(head.flows.map((f) => f.surface).filter(Boolean))];
 
   document.title = `${head.app.name} business map`;
 
@@ -751,13 +778,19 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
   }
 
   // ------------------------------------------------------------ header & index
+  // The im-a-pm project itself, for the Star and Report links in the header.
+  const PROJECT = 'https://github.com/danilojpferreira/im-a-pm';
   function drawTop() {
     const decisions = head.flows.reduce((s, f) => s + f.nodes.filter((n) => n.type === 'decision').length, 0);
     const findings = head.flows.reduce((s, f) => s + (f.findings || []).length, 0);
     // One line: name, version, description (click to read it all), counts.
     $('top').innerHTML = `<div class="brand"><h1>${esc(head.app.name)}</h1><span class="eyebrow">${esc(head.app.ref || '')}${head.app.commit ? ' @ ' + esc(head.app.commit.slice(0, 7)) : ''}</span></div>
-      ${head.app.summary ? `<button type="button" class="about clamp${state.aboutOpen ? ' open' : ''}" id="about" aria-expanded="${!!state.aboutOpen}">${esc(head.app.summary)}</button>` : '<span class="about"></span>'}
-      <div class="stats"><span><b>${head.flows.length}</b> entrypoints</span><span><b>${decisions}</b> decisions</span><span><b>${findings}</b> findings</span></div>`;
+      ${head.app.summary ? clampHtml('about', 'about', head.app.summary, state.aboutOpen) : '<span class="about"></span>'}
+      <div class="stats"><span><b>${head.flows.length}</b> entrypoints</span><span><b>${decisions}</b> decisions</span><span><b>${findings}</b> findings</span></div>
+      <nav class="gh" aria-label="im-a-pm on GitHub">
+        <a class="star" href="${PROJECT}" target="_blank" rel="noopener" title="Like im-a-pm? Give it a star on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></svg>Star</a>
+        <a href="${PROJECT}/issues/new" target="_blank" rel="noopener" title="Something wrong with im-a-pm? Open an issue on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>Report</a>
+      </nav>`;
     clampable($('about'), () => { state.aboutOpen = !state.aboutOpen; drawTop(); });
     const stale = head.flows.flatMap((f) => f.nodes.filter((n) => n.stale).map((n) => f.title));
     if (stale.length) {
@@ -781,9 +814,19 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
   }
   function drawIndex() {
     const groups = new Map();
-    for (const id of allFlowIds) { const f = flowOf(id); if (!matches(f)) continue; const d = f.domain || 'Other'; (groups.get(d) || groups.set(d, []).get(d)).push(f); }
+    const bySurface = surfaces.length > 1;
+    for (const id of allFlowIds) {
+      const f = flowOf(id); if (!matches(f)) continue;
+      const key = `${bySurface ? f.surface || '' : ''}\u0000${f.domain || 'Other'}`;
+      (groups.get(key) || groups.set(key, []).get(key)).push(f);
+    }
+    // Keep each surface's domains together, in the order surfaces first appear.
+    const order = (k) => { const sf = k.split('\u0000')[0]; const i = surfaces.indexOf(sf); return i < 0 ? surfaces.length : i; };
     const html = [];
-    for (const [d, flows] of groups) {
+    let lastSurface = null;
+    for (const [key, flows] of [...groups].sort((a, b) => order(a[0]) - order(b[0]))) {
+      const [sf, d] = key.split('\u0000');
+      if (bySurface && sf !== lastSurface) { html.push(`<div class="surface">${esc(surfaceName(sf) || 'Other')}</div>`); lastSurface = sf; }
       html.push(`<div class="domain eyebrow">${esc(d)}</div>`);
       for (const f of flows) {
         const st = state.showChanges ? flowStatus(f.id) : null; const nf = (f.findings || []).length;
@@ -818,13 +861,16 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
   // "Starts when": the steps of other flows that hand off to this one. Many flows can feed one
   // (a saga that reacts to every report update), so the row starts as one chip per flow, on one line.
   function startsWhenHtml(f) {
-    if (!f.trigger?.channel) return '';
-    const em = emitters.get(f.trigger.channel) || [];
-    if (!em.length) return `<div class="links"><span class="muted">Starts when</span><span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span></div>`;
+    const ch = channelOf(f);
+    if (!ch) return '';
+    const em = emitters.get(ch) || [];
+    // An API route that no mapped screen calls is normal (other clients, public API): say nothing.
+    if (!em.length) return f.trigger?.channel ? `<div class="links"><span class="muted">Starts when</span><span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span></div>` : '';
+    const lead = ch.startsWith('http:') ? 'Called from' : 'Starts when';
     const chip = (flowId, nodeIds, text, tip, opt) => `<button type="button" class="linkbtn" data-goflow="${esc(flowId)}" data-gonode="${esc(nodeIds.join(','))}" title="${esc(tip)}"${opt ? ' data-fit="opt"' : ''}>↰ <span class="t">${text}</span></button>`;
     if (state.startsOpen) {
       const all = em.map((x) => chip(x.flow.id, [x.node.id], `${esc(x.flow.title)}: ${esc(x.node.label)}`, `${x.flow.title}: ${x.node.label}`, false)).join('');
-      return `<div class="links"><span class="muted">Starts when</span>${all}<button type="button" class="linkmore" data-starts="less">Show less</button></div>`;
+      return `<div class="links"><span class="muted">${lead}</span>${all}<button type="button" class="linkmore" data-starts="less">Show less</button></div>`;
     }
     const groups = new Map();
     for (const x of em) (groups.get(x.flow.id) || groups.set(x.flow.id, { flow: x.flow, nodes: [] }).get(x.flow.id)).nodes.push(x.node);
@@ -833,7 +879,7 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
       `${esc(gr.flow.title)}${gr.nodes.length > 1 ? ` <span class="count">· ${gr.nodes.length} steps</span>` : ''}`,
       `${gr.flow.title}\n${gr.nodes.map((n) => '· ' + n.label).join('\n')}`, k > 0)).join('');
     const showAll = em.length > list.length;
-    return `<div class="links" data-fitrow="starts" data-total="${em.length}" data-showall="${showAll}"><span class="muted">Starts when</span>${chips}<button type="button" class="linkmore" data-starts="more" data-fitmore${showAll ? '' : ' hidden'}>show all ${em.length} steps</button></div>`;
+    return `<div class="links" data-fitrow="starts" data-total="${em.length}" data-showall="${showAll}"><span class="muted">${lead}</span>${chips}<button type="button" class="linkmore" data-starts="more" data-fitmore${showAll ? '' : ' hidden'}>show all ${em.length} steps</button></div>`;
   }
   // Keep a row of chips on one line: hide optional chips from the end until it fits, and say how
   // many are hidden on the row's "more" button.
@@ -850,12 +896,14 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
     let hidden = 0;
     for (let i = opt.length - 1; i >= 0 && !oneLine(); i--) { opt[i].hidden = true; hidden++; if (more) more.textContent = label(hidden); }
   }
-  // One-line text: clicking expands it, but only when it is actually cut.
-  function clampable(el, toggle) {
-    if (!el) return;
-    if (!el.classList.contains('open') && el.scrollWidth <= el.clientWidth + 1) { el.classList.add('fits'); el.disabled = false; el.title = ''; return; }
-    el.title = el.classList.contains('open') ? 'Show less' : 'Show all';
-    el.addEventListener('click', toggle);
+  // Descriptions are one line by default, with "Show more" when the text is cut.
+  function clampHtml(id, cls, text, open) {
+    return `<div class="clampbox ${cls}${open ? ' open' : ''}" id="${id}"><span class="clamp-t">${esc(text)}</span><button type="button" class="more-link" aria-expanded="${!!open}" hidden>${open ? 'Show less' : 'Show more'}</button></div>`;
+  }
+  function clampable(box, toggle) {
+    if (!box) return;
+    const t = box.querySelector('.clamp-t'), btn = box.querySelector('.more-link');
+    if (box.classList.contains('open') || t.scrollWidth > t.clientWidth + 1) { btn.hidden = false; btn.addEventListener('click', toggle); }
   }
   function drawFlowHead() {
     const f = flowOf(state.flow);
@@ -878,8 +926,8 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
       ...changes.map((t) => `<div class="note change"><span class="k">Change</span><span>${esc(t)}</span></div>`),
       ...findings.map((x, i) => `<button type="button" class="note" data-f="${i}"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></button>`),
     ];
-    $('flowhead').innerHTML = `<div class="meta"><span class="eyebrow">${esc(f.domain || '')}</span>${f.actor ? `<span>Started by <b>${esc(f.actor)}</b></span>` : ''}<span class="trigger">${esc(f.trigger?.kind || '')} · ${esc(f.trigger?.signature || '')}</span></div>
-      <h2>${esc(f.title)}</h2>${f.summary ? `<button type="button" class="fsum clamp${state.summaryOpen ? ' open' : ''}" id="fsum" aria-expanded="${!!state.summaryOpen}">${esc(f.summary)}</button>` : ''}
+    $('flowhead').innerHTML = `<div class="meta">${f.surface ? `<span class="surface-chip">${esc(surfaceName(f.surface))}</span>` : ''}<span class="eyebrow">${esc(f.domain || '')}</span>${f.actor ? `<span>Started by <b>${esc(f.actor)}</b></span>` : ''}<span class="trigger">${esc(f.trigger?.kind || '')} · ${esc(f.trigger?.signature || '')}</span></div>
+      <h2>${esc(f.title)}</h2>${f.summary ? clampHtml('fsum', 'fsum', f.summary, state.summaryOpen) : ''}
       ${startsWhenHtml(f)}
       <div class="paths" role="group" aria-label="Paths" data-fitrow="paths">${chips.join('')}</div>
       ${notes.length ? `<details class="collapse" ${changes.length || findings.length <= 2 ? 'open' : ''}><summary>${changes.length ? `${changes.length} change${changes.length > 1 ? 's' : ''}` : ''}${changes.length && findings.length ? ' · ' : ''}${findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : ''}</summary><div class="notes" style="margin-top:6px">${notes.join('')}</div></details>` : ''}`;
@@ -982,7 +1030,7 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
         ${rows.length ? `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : ''}
         ${n.stale ? `<div class="stalebox"><b>Needs re-check</b>The code behind this step changed: ${esc((n.stale.reasons || []).join('; '))}.</div>` : ''}
         ${findings.map((x) => `<div class="note" style="cursor:default"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></div>`).join('')}
-        ${(n.emits || []).length ? `<div class="links"><span class="muted">Continues in</span>${n.emits.map((e) => { const nx = consumers.get(e.channel) || []; return nx.length ? nx.map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.id)}" data-gonode="start">${esc(x.title)} ↳</button>`).join('') : `<span class="mono">${esc(e.channel)}</span>`; }).join('')}</div>` : ''}
+        ${(n.emits || []).length ? `<div class="links"><span class="muted">Continues in</span>${n.emits.map((e) => { const nx = consumers.get(normalizeChannel(e.channel)) || []; return nx.length ? nx.map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.id)}" data-gonode="start">${esc(x.title)} ↳</button>`).join('') : `<span class="mono">${esc(e.channel)}</span>`; }).join('')}</div>` : ''}
         ${n._d === 'removed' ? '' : actionsHtml(subject)}
         ${n.calls?.length ? `<details class="collapse"><summary>For engineers: functions that run here, in order (${n.calls.length})</summary><ol class="calls">${callItems(n.calls)}</ol></details>` : ''}
         ${n.anchors?.length ? `<details class="collapse"><summary>For engineers: where the rule lives</summary><div class="anchors">${n.anchors.map((a) => `<code>${esc(a.file)}:${esc(a.line)}</code>`).join('')}</div></details>` : ''}`;
@@ -1040,7 +1088,7 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
     return JSON.stringify({
       app: { name: head.app.name, summary: head.app.summary }, glossary: head.glossary || [],
       flows: head.flows.map((f) => ({
-        id: f.id, title: f.title, domain: f.domain, actor: f.actor, trigger: { kind: f.trigger?.kind, signature: f.trigger?.signature, channel: f.trigger?.channel },
+        id: f.id, title: f.title, surface: f.surface, domain: f.domain, actor: f.actor, trigger: { kind: f.trigger?.kind, signature: f.trigger?.signature, channel: f.trigger?.channel },
         summary: f.summary, happyPath: f.happyPath, outcomes: f.outcomes,
         nodes: f.nodes.map((n) => ({ id: n.id, type: n.type, label: n.label, rule: n.rule, result: n.result, response: n.response, data: n.data, emits: (n.emits || []).map((e) => e.channel), confidence: n.confidence })),
         edges: f.edges.map((e) => [e.from, e.to, e.label || '']),

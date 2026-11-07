@@ -1,6 +1,6 @@
 ---
 name: im-a-pm
-description: Map a codebase as business flows for product managers. Every entrypoint (REST, GraphQL, queues, events, jobs, cron, sagas, webhooks) becomes a flowchart of business decisions from trigger to outcome, with the functions that run at each step in order, and the map is kept in sync with the code and opened in the browser. Use when someone asks how a feature or business rule works in product terms, wants a PM-readable map of the app, wants to update the map after code changes, wants to change a business rule from the map, or wants to see which business behavior a branch or PR changes. Commands are /im-a-pm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", and diff [<base-ref>]. /imapm is an alias.
+description: Map a codebase as business flows for product managers. Every entrypoint (REST, GraphQL, queues, events, jobs, cron, sagas, webhooks, and the screens and actions of a web or mobile frontend) becomes a flowchart of business decisions from trigger to outcome, with the functions that run at each step in order, and the map is kept in sync with the code and opened in the browser. Use when someone asks how a feature or business rule works in product terms, wants a PM-readable map of the app, wants to update the map after code changes, wants to change a business rule from the map, or wants to see which business behavior a branch or PR changes. Commands are /im-a-pm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", and diff [<base-ref>]. /imapm is an alias.
 ---
 
 # im-a-pm
@@ -76,6 +76,13 @@ Goal: a correct, complete, PM-readable `.im-a-pm/flows.json` for HEAD.
    - scheduled jobs and queue workers
    - CLI commands
    - saga steps and webhooks
+   - on a frontend: the screens and the actions people take on them (submitting a form, pressing
+     a button, following a deep link)
+
+   In a monorepo, inventory every app and give each flow a `surface` (`web`, `mobile`, `api`…).
+   For frontends, read "Frontends" and "Monorepos" in `reference/entrypoints.md`. They say what
+   counts as a rule on a screen, and how a screen's API call links to the API flow
+   (`emits: http:POST /orders`).
 
    Resolve declarative wiring: annotations and decorators, DI containers, route files, framework
    conventions, lazy-loaded modules and config-driven registration. Write the inventory down before

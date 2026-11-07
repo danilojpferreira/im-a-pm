@@ -2,7 +2,7 @@
   "version": 1,
   "app": {
     "name": "Shop",
-    "summary": "Customers check out a cart and pay by card. Paid orders ship from one or more warehouses, and every night the day's orders are invoiced.",
+    "summary": "Customers check out a cart on the web app and pay by card. Paid orders ship from one or more warehouses, and every night the day's orders are invoiced.",
     "repo": "examples/shop",
     "ref": "v1",
     "commit": null,
@@ -25,7 +25,559 @@
   "excluded": [],
   "flows": [
     {
+      "id": "open-checkout",
+      "surface": "web",
+      "title": "Open the checkout",
+      "domain": "Checkout",
+      "actor": "Customer",
+      "trigger": {
+        "kind": "page",
+        "signature": "/checkout",
+        "anchors": [
+          {
+            "file": "web/src/main.jsx",
+            "line": 9
+          }
+        ]
+      },
+      "summary": "What the customer sees on the checkout page: sent to sign in, an empty cart, or the payment form.",
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "label": "Customer opens the checkout",
+          "calls": [
+            {
+              "fn": "createBrowserRouter /checkout",
+              "file": "web/src/main.jsx",
+              "line": 9,
+              "depth": 0,
+              "kind": "framework",
+              "note": "React Router runs the requireCustomer loader, then renders CheckoutPage"
+            }
+          ]
+        },
+        {
+          "id": "signed-in",
+          "type": "decision",
+          "label": "Is the customer signed in?",
+          "rule": "Signed-out visitors are sent to sign in, and come back to the checkout afterwards.",
+          "anchors": [
+            {
+              "file": "web/src/auth.js",
+              "line": 6
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "requireCustomer",
+              "file": "web/src/auth.js",
+              "line": 5,
+              "endLine": 11,
+              "depth": 0,
+              "kind": "framework",
+              "note": "route loader"
+            }
+          ]
+        },
+        {
+          "id": "read-cart",
+          "type": "data",
+          "label": "Read the cart saved in the browser",
+          "data": {
+            "op": "read",
+            "entity": "Cart"
+          },
+          "rule": "The cart lives in the browser until the order is placed.",
+          "anchors": [
+            {
+              "file": "web/src/cart.js",
+              "line": 3
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "CheckoutPage",
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 12,
+              "endLine": 46,
+              "depth": 0
+            },
+            {
+              "fn": "useCart",
+              "file": "web/src/cart.js",
+              "line": 2,
+              "endLine": 4,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "has-items",
+          "type": "decision",
+          "label": "Does the cart have items?",
+          "rule": "An empty cart shows a message and a link back to the shop instead of the form.",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 18
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "CheckoutPage (empty cart)",
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 18,
+              "endLine": 20,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "shown-free",
+          "type": "outcome",
+          "label": "Checkout form shown",
+          "result": "success",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 40
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "to-login",
+          "type": "outcome",
+          "label": "Sent to sign in",
+          "result": "rejected",
+          "response": "redirect to /login?next=/checkout",
+          "anchors": [
+            {
+              "file": "web/src/auth.js",
+              "line": 8
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "empty",
+          "type": "outcome",
+          "label": "Shows \"Your cart is empty\"",
+          "result": "rejected",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 19
+            }
+          ],
+          "confidence": "high"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "signed-in"
+        },
+        {
+          "from": "signed-in",
+          "to": "read-cart",
+          "label": "Yes"
+        },
+        {
+          "from": "signed-in",
+          "to": "to-login",
+          "label": "No"
+        },
+        {
+          "from": "read-cart",
+          "to": "has-items"
+        },
+        {
+          "from": "has-items",
+          "to": "shown-free",
+          "label": "Yes"
+        },
+        {
+          "from": "has-items",
+          "to": "empty",
+          "label": "No"
+        }
+      ],
+      "happyPath": "shown-free",
+      "outcomes": {
+        "to-login": "Not signed in",
+        "empty": "Empty cart"
+      },
+      "findings": []
+    },
+    {
+      "id": "pay-for-order",
+      "surface": "web",
+      "title": "Pay for the order",
+      "domain": "Checkout",
+      "actor": "Customer",
+      "trigger": {
+        "kind": "ui",
+        "signature": "Pay button on /checkout",
+        "anchors": [
+          {
+            "file": "web/src/pages/Checkout.jsx",
+            "line": 38
+          }
+        ]
+      },
+      "summary": "The customer presses Pay. The address is checked on the screen, the order is sent to the API, and the screen reacts to its answer.",
+      "nodes": [
+        {
+          "id": "start",
+          "type": "start",
+          "label": "Customer presses Pay",
+          "calls": [
+            {
+              "fn": "form.handleSubmit(pay)",
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 38,
+              "depth": 0,
+              "kind": "framework",
+              "note": "react-hook-form validates with the zod schema before calling pay"
+            }
+          ]
+        },
+        {
+          "id": "address-valid",
+          "type": "decision",
+          "label": "Is the delivery address complete?",
+          "rule": "Name required, street of 3+ characters, a 5-digit postal code, and a country of US or Canada.",
+          "anchors": [
+            {
+              "file": "web/src/checkout-schema.js",
+              "line": 5
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "addressSchema",
+              "file": "web/src/checkout-schema.js",
+              "line": 5,
+              "endLine": 10,
+              "depth": 1,
+              "kind": "validation",
+              "note": "zod, via zodResolver"
+            }
+          ]
+        },
+        {
+          "id": "already-sending",
+          "type": "decision",
+          "label": "Is the order already being sent?",
+          "rule": "The Pay button is disabled while the order is sent, and a second press is ignored. This stops double orders from a double click.",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 25
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "pay",
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 24,
+              "endLine": 35,
+              "depth": 0
+            },
+            {
+              "fn": "pay (double-submit guard)",
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 25,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "send-order",
+          "type": "action",
+          "label": "Send the order to the API",
+          "rule": "The Pay button stays disabled until the API answers.",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 27
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "setSending(true)",
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 26,
+              "depth": 1
+            },
+            {
+              "fn": "placeOrder",
+              "file": "web/src/api.js",
+              "line": 3,
+              "endLine": 10,
+              "depth": 1
+            },
+            {
+              "fn": "fetch POST /orders",
+              "file": "web/src/api.js",
+              "line": 4,
+              "depth": 2,
+              "kind": "call",
+              "note": "sends the address and the session token"
+            }
+          ],
+          "emits": [
+            {
+              "channel": "http:POST /orders",
+              "label": "the cart is read from the session on the API"
+            }
+          ]
+        },
+        {
+          "id": "answer",
+          "type": "decision",
+          "label": "What did the API answer?",
+          "rule": "Each answer is handled by its status code. Any code not listed gets the same generic message.",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 30
+            }
+          ],
+          "confidence": "high",
+          "calls": [
+            {
+              "fn": "pay (status handling)",
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 30,
+              "endLine": 34,
+              "depth": 1
+            }
+          ]
+        },
+        {
+          "id": "confirmation",
+          "type": "outcome",
+          "label": "Order confirmation page",
+          "result": "success",
+          "response": "/orders/:id/confirmation",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 30
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "to-login",
+          "type": "outcome",
+          "label": "Sent to sign in",
+          "result": "rejected",
+          "response": "redirect to /login?next=/checkout",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 31
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "declined",
+          "type": "outcome",
+          "label": "Toast: \"Your card was declined. Try another card.\"",
+          "result": "rejected",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 32
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "conflict",
+          "type": "outcome",
+          "label": "Toast with the API's message (an item is out of stock)",
+          "result": "rejected",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 33
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "try-again",
+          "type": "outcome",
+          "label": "Toast: \"Something went wrong, please try again.\"",
+          "result": "error",
+          "rule": "Shown for every other answer: an empty cart (400), payments unavailable (503), and the generic 500, including when the card was charged but the order was not saved.",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 34
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "address-errors",
+          "type": "outcome",
+          "label": "Errors shown under the address fields",
+          "result": "rejected",
+          "anchors": [
+            {
+              "file": "web/src/checkout-schema.js",
+              "line": 5
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "ignored",
+          "type": "outcome",
+          "label": "Nothing happens: already paying",
+          "result": "rejected",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 25
+            }
+          ],
+          "confidence": "high"
+        },
+        {
+          "id": "stuck",
+          "type": "outcome",
+          "label": "Pay button stays disabled, no message",
+          "result": "error",
+          "implicit": true,
+          "rule": "If the request itself fails (offline, timeout), the error is not caught. The button is never enabled again and the customer is not told anything. Reloading the page is the only way out.",
+          "anchors": [
+            {
+              "file": "web/src/pages/Checkout.jsx",
+              "line": 27
+            }
+          ],
+          "confidence": "medium"
+        }
+      ],
+      "edges": [
+        {
+          "from": "start",
+          "to": "address-valid"
+        },
+        {
+          "from": "address-valid",
+          "to": "already-sending",
+          "label": "Yes"
+        },
+        {
+          "from": "address-valid",
+          "to": "address-errors",
+          "label": "No"
+        },
+        {
+          "from": "already-sending",
+          "to": "send-order",
+          "label": "No"
+        },
+        {
+          "from": "already-sending",
+          "to": "ignored",
+          "label": "Yes"
+        },
+        {
+          "from": "send-order",
+          "to": "answer"
+        },
+        {
+          "from": "send-order",
+          "to": "stuck",
+          "label": "Network fails",
+          "implicit": true
+        },
+        {
+          "from": "answer",
+          "to": "confirmation",
+          "label": "201"
+        },
+        {
+          "from": "answer",
+          "to": "to-login",
+          "label": "401"
+        },
+        {
+          "from": "answer",
+          "to": "declined",
+          "label": "402"
+        },
+        {
+          "from": "answer",
+          "to": "conflict",
+          "label": "409"
+        },
+        {
+          "from": "answer",
+          "to": "try-again",
+          "label": "Anything else"
+        }
+      ],
+      "happyPath": "confirmation",
+      "outcomes": {
+        "to-login": "Session expired",
+        "declined": "Card declined",
+        "conflict": "Out of stock",
+        "try-again": "Any other error",
+        "address-errors": "Address incomplete",
+        "ignored": "Pressed twice",
+        "stuck": "Network fails"
+      },
+      "findings": [
+        {
+          "kind": "risk",
+          "text": "When the API charged the card but could not save the order, the screen says \"please try again\". Trying again charges the card a second time.",
+          "nodes": [
+            "try-again"
+          ]
+        },
+        {
+          "kind": "surprise",
+          "text": "The Pay button shows the cart total without shipping. The card is always charged $7.90 more than the button says.",
+          "nodes": [
+            "send-order"
+          ]
+        },
+        {
+          "kind": "gap",
+          "text": "The shop ships to Canada, but the postal code must be 5 digits. No Canadian postal code (like K1A 0B1) can pass, so Canadian customers cannot check out.",
+          "nodes": [
+            "address-valid"
+          ]
+        },
+        {
+          "kind": "gap",
+          "text": "If the request fails, the Pay button stays disabled and the customer is told nothing.",
+          "nodes": [
+            "stuck"
+          ]
+        }
+      ]
+    },
+    {
       "id": "place-order",
+      "surface": "api",
       "title": "Place an order",
       "domain": "Checkout",
       "actor": "Customer",
@@ -594,6 +1146,7 @@
     },
     {
       "id": "ship-order",
+      "surface": "api",
       "title": "Ship a paid order",
       "domain": "Shipping",
       "actor": "Queue worker",

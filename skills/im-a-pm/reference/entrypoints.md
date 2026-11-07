@@ -69,6 +69,64 @@ Look at env-driven defaults, feature flags (LaunchDarkly, Unleash, `if (flags.x)
 config, and database defaults (column defaults, triggers, soft-delete filters). A flag check is a
 decision node. Name the flag in `rule`.
 
+## Frontends (web and mobile)
+
+On a screen, a flow starts with **what the person does**: opening a page, submitting a form,
+pressing a button, following a deep link or a notification. It also starts when the screen acts
+by itself (polling, a timer, a websocket message). Map the actions with business behavior, not
+every component.
+
+| Stack | Screens and routes | Actions and data |
+|---|---|---|
+| React Router | `createBrowserRouter`, `<Route path>`, `loader` / `action` | `onSubmit`, `onClick` handlers, `useNavigate` |
+| Next.js | `app/**/page.tsx`, `pages/**`, `middleware.ts`, layouts | server actions (`'use server'`), `route.ts` handlers, `redirect()` |
+| Remix / SvelteKit / Nuxt | route files, `loader` / `action`, `+page.ts`, `+page.server.ts` | form actions, `load` functions |
+| Vue / Nuxt | `vue-router` routes, `beforeEach` guards, `pages/` | component methods, Pinia actions |
+| Angular | `RouterModule.forRoot/forChild`, `canActivate` guards, resolvers | component methods, services, NgRx effects |
+| React Native / Expo | `Stack.Screen`, `expo-router` `app/`, deep-link config | `onPress`, push-notification handlers |
+
+What runs in between is spread out on a frontend. Follow it through:
+- data hooks and stores: React Query / SWR (`useQuery`, `useMutation`), Redux thunks and sagas,
+  Zustand, Pinia, NgRx
+- state machines (XState), which are often the clearest statement of the rules
+- the API client, where the call to the backend happens
+
+**Business decisions on a screen**
+- form validation: `zod` / `yup` / `valibot` schemas, `react-hook-form` rules, HTML `required`,
+  `min` and `pattern`
+- who sees what: roles, plans, paywalls, ownership checks
+- feature flags and A/B tests (LaunchDarkly, Unleash, GrowthBook, PostHog)
+- route guards and redirects ("not signed in → /login")
+- prices, totals and promises computed on the screen (shipping, discounts, "free from $X")
+- what the person sees when something fails, is empty, or is offline
+- protections such as a disabled button while a payment is in flight
+
+**Not decisions:** layout, styling, animation, loading spinners, analytics calls, and purely
+presentational components.
+
+**Outcomes are what the person sees:** a screen, a redirect, a toast or an inline error. Use the
+screen's own copy as the label ("Your card was declined"). It is already in the PM's words.
+
+**Calling the API.** When the screen calls an endpoint of an API in the same repository (a
+monorepo), the step that calls it emits `http:<METHOD> <path>`. The API flow for that route picks
+it up automatically (see "Hand-offs" in `schema.md`). Then branch on what comes back, with one
+decision on the response ("Did the API accept the order?") and an outcome per answer. When the
+API is not in the repository (a third-party API, Firebase, Supabase), the call is an `external`
+step. Declarative backend rules kept in the repository, such as Firebase security rules or
+Supabase row-level security policies, are decisions too.
+
+**Rules that exist on both sides.** A screen often repeats a backend rule: validation, limits,
+prices. Check both. When they differ ("free shipping from $99" on the screen, from $100 in the
+API), record a finding of kind `inconsistency` on both flows.
+
+## Monorepos
+
+Map the whole repository into one `.im-a-pm/flows.json` at its root, so that hand-offs between
+apps resolve. Give every flow a `surface`, the app or package it belongs to: `web`, `mobile`,
+`admin`, `api`, `worker`. The viewer groups the list by surface, then by domain. To build in
+parts, map one surface at a time ("build the map for the web app") and keep the ids of the
+others.
+
 ## Exclude (list them in `excluded`)
 
 Health/readiness probes, metrics, API docs (Swagger/OpenAPI UI), static asset serving, framework

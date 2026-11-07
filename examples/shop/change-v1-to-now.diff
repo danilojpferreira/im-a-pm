@@ -61,3 +61,34 @@ diff -ruN a/src/orders/place-order.js b/src/orders/place-order.js
  
    let attempt = 0;
    let charge;
+diff -ruN a/web/src/pages/Checkout.jsx b/web/src/pages/Checkout.jsx
+--- a/web/src/pages/Checkout.jsx	2026-11-07 20:47:30.044046423 +0000
++++ b/web/src/pages/Checkout.jsx	2026-11-07 20:47:30.025038553 +0000
+@@ -7,6 +7,8 @@
+ import { placeOrder } from '../api.js';
+ import { toast } from '../toast.js';
+ 
++const FREE_SHIPPING_FROM = 99;
++
+ export function CheckoutPage() {
+   const cart = useCart();
+   const navigate = useNavigate();
+@@ -17,6 +19,8 @@
+     return <p>Your cart is empty. <Link to="/">Keep shopping</Link></p>;
+   }
+ 
++  const freeShipping = cart.total >= FREE_SHIPPING_FROM;
++
+   async function pay(address) {
+     if (sending) return;
+     setSending(true);
+@@ -32,6 +36,9 @@
+ 
+   return (
+     <form onSubmit={form.handleSubmit(pay)}>
++      {freeShipping
++        ? <p className="banner">Free shipping on this order</p>
++        : <p className="banner">Add ${(FREE_SHIPPING_FROM - cart.total).toFixed(2)} for free shipping</p>}
+       {/* address fields; validation errors show under each field */}
+       <button type="submit" disabled={sending}>Pay ${cart.total.toFixed(2)}</button>
+     </form>
