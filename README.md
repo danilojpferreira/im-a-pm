@@ -59,6 +59,11 @@ changes, `/im-a-pm sync` re-checks only the steps whose code changed.
 These screenshots come from [`examples/shop`](examples/shop), a small order system that uses
 everything below. Every build, sync, change or diff opens the viewer in your browser by itself.
 
+Click any step and its arrows, in and out, are highlighted while the rest fade. Click empty space
+to clear the selection. Where a flow forks or branches merge back together, each arrow has its
+own point on the box: the straight-through branch uses the top or bottom, and the others use the
+sides. Arrows run only through the gaps between steps, never across one.
+
 ### What changed in this branch
 
 ![Checkout with "Show changes" on: two new steps outlined in green, a changed step in amber, and the inspector showing the rule before and after](docs/changes.png)

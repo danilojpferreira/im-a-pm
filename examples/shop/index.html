@@ -27,6 +27,7 @@
   --external-bg: #f1e9f6; --external-line: #8a64a8;
   --start-bg: #1b2628;    --start-ink: #f3f5f2;
   --loop: #9a3384;        --implicit-stripe: rgba(185, 87, 58, 0.10);
+  --focus: #2459c9;
   --ok-bg: #e2f2e4;       --ok-line: #3a8a4c;
   --rej-bg: #fbe6df;      --rej-line: #b9573a;
   --err-bg: #eceeee;      --err-line: #7d8788;
@@ -50,6 +51,7 @@
   --external-bg: #2d2238; --external-line: #b48ed2;
   --start-bg: #e2e8e5;    --start-ink: #111718;
   --loop: #e27fcf;        --implicit-stripe: rgba(224, 133, 102, 0.14);
+  --focus: #79a6ff;
   --ok-bg: #183222;       --ok-line: #63bb78;
   --rej-bg: #3b2119;      --rej-line: #e08566;
   --err-bg: #232b2c;      --err-line: #9aa6a7;
@@ -65,6 +67,7 @@
   --external-bg: #2d2238; --external-line: #b48ed2;
   --start-bg: #e2e8e5;    --start-ink: #111718;
   --loop: #e27fcf;        --implicit-stripe: rgba(224, 133, 102, 0.14);
+  --focus: #79a6ff;
   --ok-bg: #183222;       --ok-line: #63bb78;
   --rej-bg: #3b2119;      --rej-line: #e08566;
   --err-bg: #232b2c;      --err-line: #9aa6a7;
@@ -170,7 +173,7 @@ details.collapse > summary { cursor: pointer; color: var(--muted); font-weight: 
 .node.outcome.success { background: var(--ok-bg); border-color: var(--ok-line); }
 .node.outcome.rejected { background: var(--rej-bg); border-color: var(--rej-line); }
 .node.outcome.error { background: var(--err-bg); border-color: var(--err-line); }
-.node.sel { box-shadow: 0 0 0 3px var(--accent); }
+.node.sel { box-shadow: 0 0 0 3px var(--focus); }
 .node.hl { box-shadow: 0 0 0 4px var(--accent), 0 0 0 9px var(--accent-soft); }
 .node .handoff { font-size: 11px; font-weight: 600; color: var(--external-line); }
 .links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
@@ -206,6 +209,12 @@ g.dim { opacity: .18; }
 .arrow-add { fill: var(--add); }
 .arrow-del { fill: var(--del); }
 .arrow-loop { fill: var(--loop); }
+.arrow-focus { fill: var(--focus); }
+.edge.focus { stroke: var(--focus); stroke-width: 3; }
+.edge.focus.implicit, .edge.focus.loop, .edge.focus.par { stroke: var(--focus); stroke-width: 2.5; }
+g.e.faded, g.elabel.faded { opacity: .3; }
+.elabel.focus rect { stroke: var(--focus); stroke-width: 1.5; }
+.elabel.focus text { fill: var(--focus); }
 .arrow-imp { fill: var(--rej-line); }
 .edge.loop { stroke: var(--loop); stroke-width: 2; stroke-dasharray: 7 4; }
 .edge.par { stroke: var(--external-line); stroke-width: 3; }
@@ -215,10 +224,13 @@ g.dim { opacity: .18; }
 .elabel.implicit rect { stroke: var(--rej-line); stroke-dasharray: 3 3; }
 .node.implicit { border-style: dashed; background-image: repeating-linear-gradient(135deg, transparent 0 8px, var(--implicit-stripe) 8px 10px); }
 .node.stacked { box-shadow: 4px 4px 0 -1.5px var(--surface), 4px 4px 0 0 var(--external-line), 8px 8px 0 -1.5px var(--surface), 8px 8px 0 0 var(--external-line); }
-.node.stacked.sel { box-shadow: 0 0 0 3px var(--accent), 4px 4px 0 -1.5px var(--surface), 4px 4px 0 0 var(--external-line), 8px 8px 0 -1.5px var(--surface), 8px 8px 0 0 var(--external-line); }
+.node.stacked.sel { box-shadow: 0 0 0 3px var(--focus), 4px 4px 0 -1.5px var(--surface), 4px 4px 0 0 var(--external-line), 8px 8px 0 -1.5px var(--surface), 8px 8px 0 0 var(--external-line); }
 .node .flowtag { font-size: 11px; font-weight: 600; color: var(--external-line); }
 .node .flowtag.join { color: var(--loop); }
 .dtag.implicit { background: var(--rej-line); }
+.edge.loop.focus, .edge.implicit.focus, .edge.par.focus { stroke: var(--focus); }
+.elabel.loop.focus rect { stroke: var(--focus); }
+.elabel.loop.focus text { fill: var(--focus); }
 
 /* inspector */
 .inspector { overflow-y: auto; padding: 16px; gap: 14px; }
@@ -491,6 +503,9 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
 
     const heights = new Map();
     for (const n of g.nodes) { measurer.innerHTML = nodeHtml(n, g.flow); heights.set(n.id, Math.max(n.type === 'start' ? 44 : 56, measurer.firstChild.offsetHeight)); }
+    // Labels on arrows between steps in the same row sit in the column gap: make it wide enough.
+    const labelW = (t) => Math.max(28, String(t).length * 6.6 + 14);
+    const gapX = Math.min(150, Math.max(GAP_X, ...g.edges.filter((e) => !e.loop && e.label && layer.get(e.from) === layer.get(e.to)).map((e) => labelW(e.label) + 24)));
     const loops = g.edges.filter((e) => e.loop && byId.has(e.from) && byId.has(e.to)).length;
     const left = PAD + (loops ? 34 + loops * 16 : 0);
     const pos = new Map(); let y = PAD, maxCol = 0;
@@ -503,16 +518,16 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
       for (const i of L.filter((i) => side.has(i))) { const k = parents.get(i)[0]; (stacks.get(k) || stacks.set(k, []).get(k)).push(i); }
       const stackH = (list) => list.reduce((t, i) => t + heights.get(i), 0) + (list.length - 1) * 12;
       const h = Math.max(mainH, ...[...stacks.values()].map(stackH));
-      for (const i of main) pos.set(i, { x: left + col.get(i) * (NODE_W + GAP_X), y: y + (mainH - heights.get(i)) / 2, w: NODE_W, h: heights.get(i), row: y, rowH: h, col: col.get(i) });
+      for (const i of main) pos.set(i, { x: left + col.get(i) * (NODE_W + gapX), y: y + (mainH - heights.get(i)) / 2, w: NODE_W, h: heights.get(i), row: y, rowH: h, col: col.get(i) });
       for (const list of stacks.values()) {
         let sy = y + Math.max(0, (mainH - heights.get(list[0])) / 2);
-        for (const i of list) { pos.set(i, { x: left + col.get(i) * (NODE_W + GAP_X), y: sy, w: NODE_W, h: heights.get(i), row: y, rowH: h, col: col.get(i) }); sy += heights.get(i) + 12; }
+        for (const i of list) { pos.set(i, { x: left + col.get(i) * (NODE_W + gapX), y: sy, w: NODE_W, h: heights.get(i), row: y, rowH: h, col: col.get(i) }); sy += heights.get(i) + 12; }
       }
       for (const i of L) maxCol = Math.max(maxCol, col.get(i));
       y += h + GAP_Y;
     });
     if (happyExit) happy.add(happyExit);
-    return { pos, left, width: left + PAD + (maxCol + 1) * NODE_W + maxCol * GAP_X + STACK, height: y - GAP_Y + PAD + 40, happy };
+    return { pos, left, gapX, width: left + PAD + (maxCol + 1) * NODE_W + maxCol * gapX + STACK, height: y - GAP_Y + PAD + 40, happy };
   }
 
   // ------------------------------------------------------------ canvas
@@ -540,10 +555,12 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     zoom(ev.deltaY > 0 ? 1.1 : 0.9, view.x + (ev.clientX - r.left) / r.width * view.w, view.y + (ev.clientY - r.top) / r.height * view.h);
   }, { passive: false });
   let drag = null;
-  svg.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.node')) return; drag = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y }; svg.classList.add('dragging'); svg.setPointerCapture(ev.pointerId); });
-  svg.addEventListener('pointermove', (ev) => { if (!drag) return; const r = svg.getBoundingClientRect(); view.x = drag.vx - (ev.clientX - drag.x) * view.w / r.width; view.y = drag.vy - (ev.clientY - drag.y) * view.h / r.height; setView(); });
+  svg.addEventListener('pointerdown', (ev) => { if (ev.target.closest('.node')) return; drag = { x: ev.clientX, y: ev.clientY, vx: view.x, vy: view.y, moved: false }; svg.classList.add('dragging'); svg.setPointerCapture(ev.pointerId); });
+  svg.addEventListener('pointermove', (ev) => { if (!drag) return; if (Math.abs(ev.clientX - drag.x) + Math.abs(ev.clientY - drag.y) > 3) drag.moved = true; const r = svg.getBoundingClientRect(); view.x = drag.vx - (ev.clientX - drag.x) * view.w / r.width; view.y = drag.vy - (ev.clientY - drag.y) * view.h / r.height; setView(); });
   const endDrag = () => { drag = null; svg.classList.remove('dragging'); };
-  svg.addEventListener('pointerup', endDrag); svg.addEventListener('pointercancel', endDrag);
+  // A click (not a drag) on empty canvas clears the selection.
+  svg.addEventListener('pointerup', () => { const clicked = drag && !drag.moved; endDrag(); if (clicked && state.node) { state.node = null; state.composer = null; drawCanvas(false); drawInspector(); } });
+  svg.addEventListener('pointercancel', endDrag);
 
   let lastPos = new Map();
   // Pan so a step is in view (after a click from a list, a finding or an AI citation).
@@ -565,14 +582,76 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
       <marker id="ah-add" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-add" d="M0,0 L10,5 L0,10 z"/></marker>
       <marker id="ah-del" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-del" d="M0,0 L10,5 L0,10 z"/></marker>
       <marker id="ah-loop" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-loop" d="M0,0 L10,5 L0,10 z"/></marker>
-      <marker id="ah-imp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-imp" d="M0,0 L10,5 L0,10 z"/></marker></defs>`];
+      <marker id="ah-imp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrow-imp" d="M0,0 L10,5 L0,10 z"/></marker>
+      <marker id="ah-focus" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path class="arrow-focus" d="M0,0 L10,5 L0,10 z"/></marker></defs>`];
     const labels = [];
+    const byId = new Map(g.nodes.map((n) => [n.id, n]));
+    const focus = state.node && byId.has(state.node) ? state.node : null;
+    const touches = (e) => !!focus && (e.from === focus || e.to === focus);
+    const fade = (e) => (focus && !touches(e) ? ' faded' : '');
+    const gone = (id) => ['added', 'removed'].includes(byId.get(id)?._d);
+    // A removed path between two steps that still exist is a re-route; the new steps show it.
+    const visible = g.edges.filter((e) => L.pos.get(e.from) && L.pos.get(e.to) && !(e._d === 'removed' && !gone(e.from) && !gone(e.to)));
+    const sameRow = (e) => L.pos.get(e.from).row === L.pos.get(e.to).row;
+
+    // Which grid cells hold a step, so routes can avoid them.
+    const cells = new Map();
+    for (const [id, p] of L.pos) cells.set(`${p.row}|${p.col}`, id);
+    const rows = [...new Set([...L.pos.values()].map((p) => p.row))].sort((x, y) => x - y);
+    const free = (row, col, ignore = []) => { const id = cells.get(`${row}|${col}`); return !id || ignore.includes(id); };
+    const between = (a, b) => rows.filter((r) => r > Math.min(a.row, b.row) && r < Math.max(a.row, b.row));
+    const span = (from, to) => { const out = []; for (let c = Math.min(from, to); c <= Math.max(from, to); c++) out.push(c); return out; };
+
+    // How each arrow leaves its source and enters its target. A fork keeps its straight-down
+    // branch on the bottom and sends the others out of the side; a merge keeps the arrow from
+    // above on the top and brings the others in from the side, as in a hand-drawn flowchart.
+    const mode = new Map();
+    for (const e of visible) {
+      if (e.loop || sameRow(e)) continue;
+      const a = L.pos.get(e.from), b = L.pos.get(e.to);
+      let out = 'bottom', inn = 'top';
+      if (a.col !== b.col) {
+        const dir = b.col > a.col ? 1 : -1;
+        const forkDown = visible.some((x) => x !== e && !x.loop && x.from === e.from && !sameRow(x) && L.pos.get(x.to).col === a.col);
+        const mergeDown = visible.some((x) => x !== e && !x.loop && x.to === e.to && !sameRow(x) && L.pos.get(x.from).col === b.col);
+        const sideOutClear = span(a.col + dir, b.col).every((c) => free(a.row, c)) && between(a, b).every((r) => free(r, b.col));
+        const sideInClear = span(a.col, b.col - dir).every((c) => free(b.row, c, [e.from])) && between(a, b).every((r) => free(r, a.col));
+        if (forkDown && sideOutClear) out = 'side';
+        else if (mergeDown && sideInClear) inn = 'side';
+      }
+      // Same column but a step in between: the arrow detours left (first column) or right.
+      const detour = a.col === b.col && !between(a, b).every((r) => free(r, a.col)) ? (a.col === 0 ? -1 : 1) : 0;
+      mode.set(e, { out, inn, detour });
+    }
+    // Arrows that still share the bottom of a step (or the top of one) get their own x,
+    // ordered left to right, so every line can be followed.
+    const STEP = 26;
+    const exitX = new Map(), entryX = new Map(), exitRank = new Map();
+    const spread = (nodeId, list, otherEnd, outMap) => {
+      const p = L.pos.get(nodeId), cx = p.x + p.w / 2;
+      const o = (e) => L.pos.get(e[otherEnd]);
+      const by = (a, b) => o(a).x - o(b).x || o(a).y - o(b).y;
+      const left = list.filter((e) => o(e).col < p.col).sort(by);
+      // Within the same column, arrows that will detour left leave from the left, and so on.
+      const same = list.filter((e) => o(e).col === p.col).sort((a, b) => (mode.get(a)?.detour || 0) - (mode.get(b)?.detour || 0) || by(a, b));
+      const right = list.filter((e) => o(e).col > p.col).sort(by);
+      const ordered = [...left, ...same, ...right];
+      // The arrow that goes straight up or down keeps the middle; the others spread to its sides.
+      const straight = same.findIndex((e) => !mode.get(e)?.detour);
+      const ci = same.length ? left.length + Math.max(0, straight) : (ordered.length - 1) / 2;
+      ordered.forEach((e, i) => { outMap.set(e, cx + (i - ci) * STEP); if (outMap === exitX) exitRank.set(e, i - ci); });
+    };
+    for (const n of g.nodes) {
+      if (!L.pos.get(n.id)) continue;
+      spread(n.id, visible.filter((e) => mode.get(e)?.out === 'bottom' && e.from === n.id), 'to', exitX);
+      spread(n.id, visible.filter((e) => mode.get(e)?.inn === 'top' && e.to === n.id), 'from', entryX);
+    }
+
     let loopNo = 0;
-    for (const e of g.edges) {
-      const a = L.pos.get(e.from), b = L.pos.get(e.to); if (!a || !b) continue;
-      // A removed path between two steps that still exist is a re-route; the new steps show it.
-      const gone = (id) => ['added', 'removed'].includes(g.nodes.find((n) => n.id === id)?._d);
-      if (e._d === 'removed' && !gone(e.from) && !gone(e.to)) continue;
+    for (const e of visible) {
+      const a = L.pos.get(e.from), b = L.pos.get(e.to);
+      const dim = hl && !(hl.has(e.from) && hl.has(e.to)) ? ' dim' : '';
+      const foc = touches(e) ? ' focus' : '';
       if (e.loop) {
         // Leave from the bottom, run left through the gap between rows, up the gutter, then into the target.
         const gx = L.left - 22 - loopNo++ * 16, sx = a.x + a.w / 2, sy = a.y + a.h, gy = a.row + a.rowH + GAP_Y / 2 - 6;
@@ -580,41 +659,54 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
         const d = b.col === 0
           ? `M${sx},${sy} V${gy} H${gx} V${ty} H${b.x - 2}`
           : `M${sx},${sy} V${gy} H${gx} V${ty} H${b.x + b.w / 2} V${b.y - 2}`;
-        const dim = hl && !(hl.has(e.from) && hl.has(e.to)) ? ' dim' : '';
-        const cls = ['edge', 'loop', e._d ? `d-${e._d}` : ''].join(' ');
-        parts.push(`<g class="e${dim}"><path class="${cls}" d="${d}" marker-end="url(#${e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : 'ah-loop'})"/></g>`);
-        // The label sits on the bottom run of the loop, starting at the gutter, where there is room.
-        const text = `↺ ${e.label || 'repeat'}`, w = Math.max(28, text.length * 6.6 + 14);
-        labels.push({ x: gx + 6, y: gy - 10, w, text, cls: `loop${dim}` });
+        const cls = ['edge', 'loop', e._d ? `d-${e._d}` : ''].join(' ') + foc;
+        parts.push(`<g class="e${dim}${fade(e)}"><path class="${cls}" d="${d}" marker-end="url(#${foc ? 'ah-focus' : e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : 'ah-loop'})"/></g>`);
+        const text = `↺ ${e.label || 'repeat'}`;
+        labels.push({ cx: gx + 6 + Math.max(28, text.length * 6.6 + 14) / 2, cy: gy, text, cls: `loop${dim}${fade(e)}${foc}` });
         continue;
       }
       const happyEdge = L.happy.has(e.from) && L.happy.has(e.to) && e._d !== 'removed';
-      const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y - 2;
-      const sameRow = a.row === b.row;
+      const lw = Math.max(28, String(e.label || '').length * 6.6 + 14);
       let d, lx, ly;
-      if (sameRow) {
+      if (sameRow(e)) {
+        // A decision's exit in the same row: from its right side into the exit's left side.
         const sy = a.y + a.h / 2, ty = b.y + b.h / 2, sx = a.x + a.w, tx = b.x - 2;
         d = Math.abs(sy - ty) < 1 ? `M${sx},${sy} L${tx},${ty}` : `M${sx},${sy} C${(sx + tx) / 2},${sy} ${(sx + tx) / 2},${ty} ${tx},${ty}`;
-        lx = sx + GAP_X / 2; ly = sy;
-      } else if (Math.abs(x1 - x2) < 1) { d = `M${x1},${y1} L${x2},${y2}`; lx = x1; ly = y1 + GAP_Y / 2 - 2; }
-      else {
-        // Orthogonal route through the gaps only: down out of the source row, along the column
-        // gap if it has to skip rows, across, then down into the target.
-        const gy1 = a.row + a.rowH + GAP_Y / 2, gy2 = b.row - GAP_Y / 2, dir = x2 > x1 ? 1 : -1;
-        const chX = dir > 0 ? a.x + a.w + GAP_X / 2 : a.x - GAP_X / 2;
-        d = Math.abs(gy1 - gy2) < 2 ? `M${x1},${y1} V${gy1} H${x2} V${y2}` : `M${x1},${y1} V${gy1} H${chX} V${gy2} H${x2} V${y2}`;
-        lx = x1 + dir * (GAP_X / 2 + 8); ly = gy1;
+        lx = (sx + tx) / 2; ly = Math.abs(sy - ty) < 1 ? sy : (sy + ty) / 2;
+      } else {
+        const m = mode.get(e), dir = b.col > a.col ? 1 : b.col < a.col ? -1 : 0;
+        const y1 = a.y + a.h, y2 = b.y - 2;
+        if (m.out === 'side') {
+          // Out of the side, across, then down into the target.
+          const sx = dir > 0 ? a.x + a.w : a.x, sy = a.y + a.h / 2, en = entryX.get(e);
+          d = `M${sx},${sy} H${en} V${y2}`; lx = sx + dir * (lw / 2 + 6); ly = sy;
+        } else if (m.inn === 'side') {
+          // Down from the source, then into the side of the target.
+          const ex = exitX.get(e), ty = b.y + b.h / 2, tx = dir > 0 ? b.x - 2 : b.x + b.w + 2;
+          d = `M${ex},${y1} V${ty} H${tx}`; lx = ex; ly = y1 + GAP_Y / 2 - 2;
+        } else {
+          const ex = exitX.get(e), en = entryX.get(e);
+          // Each arrow of a fork runs on its own horizontal track inside the gap.
+          const gy1 = a.row + a.rowH + GAP_Y / 2 + (exitRank.get(e) || 0) * 8, gy2 = b.row - GAP_Y / 2;
+          const clearColumn = a.col === b.col && between(a, b).every((r) => free(r, a.col));
+          const adjacent = Math.abs(a.row + a.rowH + GAP_Y - b.row) < 2;
+          if (a.col === b.col && Math.abs(ex - en) < 1 && clearColumn) { d = `M${ex},${y1} V${y2}`; lx = ex; ly = y1 + GAP_Y / 2 - 2; }
+          else if (adjacent || clearColumn) { d = `M${ex},${y1} V${gy1} H${en} V${y2}`; lx = (ex + en) / 2; ly = gy1; }
+          else {
+            // Skipping rows: along the column gap, so the arrow never crosses a step.
+            // In the first column the empty left side is the clearest channel.
+            const side = dir === 0 ? (a.col === 0 ? -1 : 1) : dir;
+            const chX = side > 0 ? a.x + a.w + L.gapX / 2 : a.col === 0 ? a.x - 16 : a.x - L.gapX / 2;
+            d = `M${ex},${y1} V${gy1} H${chX} V${gy2} H${en} V${y2}`; lx = (ex + chX) / 2; ly = gy1;
+          }
+        }
       }
-      const fan = g.nodes.find((n) => n.id === e.from)?.fanout;
+      const fan = byId.get(e.from)?.fanout;
       const par = !!fan && fan.mode !== 'batch';
-      const cls = ['edge', happyEdge && !e._d && !e.implicit ? 'happy' : '', par ? 'par' : '', e.implicit ? 'implicit' : '', e._d ? `d-${e._d}` : ''].join(' ');
-      const mk = e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : e.implicit ? 'ah-imp' : happyEdge ? 'ah-happy' : 'ah';
-      const dim = hl && !(hl.has(e.from) && hl.has(e.to)) ? ' dim' : '';
-      parts.push(`<g class="e${dim}"><path class="${cls}" d="${d}" marker-end="url(#${mk})"/></g>`);
-      if (e.label) {
-        const w = Math.max(28, e.label.length * 6.6 + 14);
-        labels.push({ x: lx - w / 2, y: ly - 10, w, text: e.label, cls: `${e.implicit ? 'implicit' : ''}${dim}` });
-      }
+      const cls = ['edge', happyEdge && !e._d && !e.implicit ? 'happy' : '', par ? 'par' : '', e.implicit ? 'implicit' : '', e._d ? `d-${e._d}` : ''].join(' ') + foc;
+      const mk = foc ? 'ah-focus' : e._d === 'added' ? 'ah-add' : e._d === 'removed' ? 'ah-del' : e.implicit ? 'ah-imp' : happyEdge ? 'ah-happy' : 'ah';
+      parts.push(`<g class="e${dim}${fade(e)}"><path class="${cls}" d="${d}" marker-end="url(#${mk})"/></g>`);
+      if (e.label) labels.push({ cx: lx, cy: ly, text: e.label, cls: `${e.implicit ? 'implicit' : ''}${dim}${fade(e)}${foc}` });
     }
     for (const n of g.nodes) {
       const p = L.pos.get(n.id); const dim = hl && !hl.has(n.id) ? ' dim' : '';
@@ -622,10 +714,20 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
       const inner = k ? nodeHtml(n, g.flow).replace('xmlns=', `style="width:${p.w}px;height:${p.h}px" xmlns=`) : nodeHtml(n, g.flow);
       parts.push(`<g class="n${dim}" data-id="${esc(n.id)}"><foreignObject x="${p.x}" y="${p.y}" width="${p.w + k}" height="${p.h + k}">${inner}</foreignObject></g>`);
     }
-    // Labels leaving the same step can land on the same spot: nudge each one down until it is clear.
+    // Labels never cover a step or another label: try the spot on the arrow, then nearby spots.
+    const boxes = g.nodes.map((n) => L.pos.get(n.id)).filter(Boolean).map((p) => ({ x: p.x - 3, y: p.y - 3, w: p.w + 6 + (STACK), h: p.h + 6 }));
     const placed = [];
-    const overlaps = (r) => placed.some((o) => r.x < o.x + o.w + 2 && o.x < r.x + r.w + 2 && r.y < o.y + 21 && o.y < r.y + 21);
-    for (const l of labels) { let n = 0; while (overlaps(l) && n++ < 8) l.y += 22; placed.push(l); }
+    const hit = (r) => [...boxes, ...placed].some((o) => r.x < o.x + o.w && o.x < r.x + r.w && r.y < o.y + o.h && o.y < r.y + r.h);
+    // Focused labels are placed first, so they keep the best spots.
+    labels.sort((a, b) => (b.cls.includes('focus') - a.cls.includes('focus')));
+    for (const l of labels) {
+      const w = Math.max(28, String(l.text).length * 6.6 + 14);
+      const tries = [[0, 0], [0, -14], [0, 14], [w / 2 + 6, 0], [-w / 2 - 6, 0], [0, -26], [0, 26], [w / 2 + 6, -14], [-w / 2 - 6, -14]];
+      let r = null;
+      for (const [dx, dy] of tries) { const c = { x: l.cx + dx - w / 2, y: l.cy + dy - 10, w, h: 20 }; if (!hit(c)) { r = c; break; } }
+      r ||= { x: l.cx - w / 2, y: l.cy - 10, w, h: 20 };
+      placed.push({ ...r, text: l.text, cls: l.cls });
+    }
     svg.innerHTML = parts.join('') + placed.map((l) => `<g class="elabel ${l.cls}" transform="translate(${l.x},${l.y})"><rect width="${l.w}" height="20" rx="10"/><text x="${l.w / 2}" y="14" text-anchor="middle">${esc(l.text)}</text></g>`).join('');
     svg.querySelectorAll('g.n').forEach((el) => el.addEventListener('click', () => { state.node = el.dataset.id; state.composer = null; drawCanvas(false); reveal(state.node); drawInspector(); }));
     if (refit) fit(); else setView();
