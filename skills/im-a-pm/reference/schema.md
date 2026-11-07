@@ -1,4 +1,4 @@
-# `.i-am-pm/flows.json` schema (version 1)
+# `.im-a-pm/flows.json` schema (version 1)
 
 ```jsonc
 {
@@ -121,7 +121,7 @@ the same viewer").
 | `note` | Optional, short. What this call does for the step when it isn't obvious |
 
 The function order of a path is the concatenation of the `calls` of its nodes, from `start` to the
-outcome (`i-am-pm.mjs trace <flow> [<outcome>]`). A function shared by several steps or flows (a
+outcome (`im-a-pm.mjs trace <flow> [<outcome>]`). A function shared by several steps or flows (a
 lookup, a save) is listed in each. That repetition is what lets `sync` find every affected flow.
 
 ## Hand-offs between flows (`emits` and `trigger.channel`)
@@ -157,7 +157,7 @@ Written by `sync` on a node (or flow, if its entrypoint moved) whose code change
 the step must be re-checked against the code. Delete it once the step is checked. `validate`
 warns while any remain, and the viewer marks them "re-check".
 
-## Invariants (checked by `i-am-pm.mjs validate`)
+## Invariants (checked by `im-a-pm.mjs validate`)
 
 - Ids are unique: flow ids across the file, node ids within a flow. Ids are kebab-case.
 - Exactly one `start` node per flow. Every edge points to existing nodes.

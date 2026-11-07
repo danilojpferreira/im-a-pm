@@ -288,11 +288,11 @@ g.dim { opacity: .18; }
 </main>
 
 <script>
-const PAYLOAD = /*__I_AM_PM_DATA__*/null;
+const PAYLOAD = /*__IM_A_PM_DATA__*/null;
 (function () {
   'use strict';
   if (!PAYLOAD) {
-    document.getElementById('bench').innerHTML = '<div class="missing"><h2>No map loaded</h2><p>This is the viewer template. Run <code class="mono">node scripts/i-am-pm.mjs render</code> to build <code class="mono">.i-am-pm/index.html</code> from <code class="mono">.i-am-pm/flows.json</code>.</p></div>';
+    document.getElementById('bench').innerHTML = '<div class="missing"><h2>No map loaded</h2><p>This is the viewer template. Run <code class="mono">node scripts/im-a-pm.mjs render</code> to build <code class="mono">.im-a-pm/index.html</code> from <code class="mono">.im-a-pm/flows.json</code>.</p></div>';
     return;
   }
   const { head, base, diff, served } = PAYLOAD;
@@ -491,7 +491,7 @@ const PAYLOAD = /*__I_AM_PM_DATA__*/null;
     const stale = head.flows.flatMap((f) => f.nodes.filter((n) => n.stale).map((n) => f.title));
     if (stale.length) {
       $('stalebar').hidden = false;
-      $('stalebar').innerHTML = `<b>${stale.length} step${stale.length > 1 ? 's' : ''} need${stale.length > 1 ? '' : 's'} re-checking</b> in ${[...new Set(stale)].map(esc).join(', ')}: the code behind them changed and they have not been re-checked yet. Run <span class="mono">/i-am-pm sync</span> in your coding agent to finish.`;
+      $('stalebar').innerHTML = `<b>${stale.length} step${stale.length > 1 ? 's' : ''} need${stale.length > 1 ? '' : 's'} re-checking</b> in ${[...new Set(stale)].map(esc).join(', ')}: the code behind them changed and they have not been re-checked yet. Run <span class="mono">/im-a-pm sync</span> in your coding agent to finish.`;
     }
     if (diff) {
       const n = diff.added.length + diff.removed.length + Object.keys(diff.changed).length;
@@ -582,9 +582,9 @@ const PAYLOAD = /*__I_AM_PM_DATA__*/null;
   function command(kind, flowId, nodeId, text) {
     const ref = nodeId ? `${flowId}/${nodeId}` : flowId;
     const t = text.replace(/"/g, '\\"');
-    if (kind === 'change') return `/i-am-pm change ${ref} "${t}"`;
-    if (kind === 'flag') return `/i-am-pm ask "Check ${ref}. A PM thinks this is wrong: ${t}"`;
-    return `/i-am-pm ask "About ${ref}: ${t}"`;
+    if (kind === 'change') return `/im-a-pm change ${ref} "${t}"`;
+    if (kind === 'flag') return `/im-a-pm ask "Check ${ref}. A PM thinks this is wrong: ${t}"`;
+    return `/im-a-pm ask "About ${ref}: ${t}"`;
   }
   function drawInspector() {
     const box = $('inspector');
@@ -645,7 +645,7 @@ const PAYLOAD = /*__I_AM_PM_DATA__*/null;
       try {
         const r = await fetch('/api/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, flow: state.flow, node: nodeId || null, text }) });
         const j = await r.json(); if (!j.ok) throw new Error(j.error);
-        toast.textContent = 'Sent. Run /i-am-pm inbox in your coding agent to process it.';
+        toast.textContent = 'Sent. Run /im-a-pm inbox in your coding agent to process it.';
       } catch (e) { toast.textContent = `Could not send: ${e.message}`; }
       return;
     }
@@ -763,7 +763,7 @@ ${map}`;
     });
   })();
 
-  // Served by `i-am-pm view|render|sync`: reload when the map is rendered again.
+  // Served by `im-a-pm view|render|sync`: reload when the map is rendered again.
   if (served) {
     let known = null;
     const poll = async () => {

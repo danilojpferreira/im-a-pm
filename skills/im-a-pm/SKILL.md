@@ -1,11 +1,11 @@
 ---
-name: i-am-pm
-description: Map a codebase as business flows for product managers. Every entrypoint (REST, GraphQL, queues, events, jobs, cron, sagas, webhooks) becomes a flowchart of business decisions from trigger to outcome, with the functions that run at each step in order, and the map is kept in sync with the code and opened in the browser. Use when someone asks how a feature or business rule works in product terms, wants a PM-readable map of the app, wants to update the map after code changes, wants to change a business rule from the map, or wants to see which business behavior a branch or PR changes. Commands are /i-am-pm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", inbox, and diff [<base-ref>]. /iampm is an alias.
+name: im-a-pm
+description: Map a codebase as business flows for product managers. Every entrypoint (REST, GraphQL, queues, events, jobs, cron, sagas, webhooks) becomes a flowchart of business decisions from trigger to outcome, with the functions that run at each step in order, and the map is kept in sync with the code and opened in the browser. Use when someone asks how a feature or business rule works in product terms, wants a PM-readable map of the app, wants to update the map after code changes, wants to change a business rule from the map, or wants to see which business behavior a branch or PR changes. Commands are /im-a-pm build, sync, view, ask "<question>", change <flow>[/<node>] "<request>", inbox, and diff [<base-ref>]. /imapm is an alias.
 ---
 
-# i-am-pm
+# im-a-pm
 
-i-am-pm turns a repository into **business flows**: one flowchart per entrypoint, written for a
+im-a-pm turns a repository into **business flows**: one flowchart per entrypoint, written for a
 product manager. A node is one of these:
 - a business decision
 - a business action
@@ -17,34 +17,34 @@ Functions are never nodes. Instead, each node records **the functions that run f
 (`calls`). A path from trigger to outcome therefore gives the exact function order of that path.
 This is the engineer's view. It is also what lets `sync` tell which steps a code change touches.
 
-Everything lives in `.i-am-pm/` at the repository root:
+Everything lives in `.im-a-pm/` at the repository root:
 
 | File | What it is | Commit it? |
 |---|---|---|
-| `.i-am-pm/flows.json` | The map, including `app.commit`, the commit it describes | **Yes** |
-| `.i-am-pm/index.html` | The rendered viewer (also served locally) | No |
-| `.i-am-pm/sync.json` | Report of the last `sync` | No |
-| `.i-am-pm/requests/*.json` | Questions and change requests sent from the viewer | No |
-| `.i-am-pm/base.json` | Map of the base ref, used by `diff` | No |
-| `.i-am-pm/view.json`, `server.json`, `server.log` | State of the local viewer server | No |
+| `.im-a-pm/flows.json` | The map, including `app.commit`, the commit it describes | **Yes** |
+| `.im-a-pm/index.html` | The rendered viewer (also served locally) | No |
+| `.im-a-pm/sync.json` | Report of the last `sync` | No |
+| `.im-a-pm/requests/*.json` | Questions and change requests sent from the viewer | No |
+| `.im-a-pm/base.json` | Map of the base ref, used by `diff` | No |
+| `.im-a-pm/view.json`, `server.json`, `server.log` | State of the local viewer server | No |
 
-On the first build, add `.i-am-pm/*` and `!.i-am-pm/flows.json` to `.gitignore`.
+On the first build, add `.im-a-pm/*` and `!.im-a-pm/flows.json` to `.gitignore`.
 
 ## The command-line helper
 
-The helper ships with this skill: `scripts/i-am-pm.mjs`, next to this file. It needs Node 18+
+The helper ships with this skill: `scripts/im-a-pm.mjs`, next to this file. It needs Node 18+
 and has no dependencies. Run it from the repository root. In the commands below, `<skill-dir>` is
 the directory that contains this SKILL.md:
 
 ```
-node <skill-dir>/scripts/i-am-pm.mjs validate
-node <skill-dir>/scripts/i-am-pm.mjs render [--base .i-am-pm/base.json]    # writes index.html and opens it
-node <skill-dir>/scripts/i-am-pm.mjs view                                  # opens the current map
-node <skill-dir>/scripts/i-am-pm.mjs sync [--since <commit>]               # see /i-am-pm sync
-node <skill-dir>/scripts/i-am-pm.mjs stamp
-node <skill-dir>/scripts/i-am-pm.mjs trace <flow-id> [<outcome-id>] [--follow]
-node <skill-dir>/scripts/i-am-pm.mjs diff <base.json> <head.json>
-node <skill-dir>/scripts/i-am-pm.mjs stop                                  # stops the viewer server
+node <skill-dir>/scripts/im-a-pm.mjs validate
+node <skill-dir>/scripts/im-a-pm.mjs render [--base .im-a-pm/base.json]    # writes index.html and opens it
+node <skill-dir>/scripts/im-a-pm.mjs view                                  # opens the current map
+node <skill-dir>/scripts/im-a-pm.mjs sync [--since <commit>]               # see /im-a-pm sync
+node <skill-dir>/scripts/im-a-pm.mjs stamp
+node <skill-dir>/scripts/im-a-pm.mjs trace <flow-id> [<outcome-id>] [--follow]
+node <skill-dir>/scripts/im-a-pm.mjs diff <base.json> <head.json>
+node <skill-dir>/scripts/im-a-pm.mjs stop                                  # stops the viewer server
 ```
 
 **The viewer opens itself.** `render`, `view` and `sync` serve the map at
@@ -63,12 +63,12 @@ against, and `sync` reads `git diff <app.commit> HEAD`. So commit code before ma
 
 ---
 
-## /i-am-pm build
+## /im-a-pm build
 
-Goal: a correct, complete, PM-readable `.i-am-pm/flows.json` for HEAD.
+Goal: a correct, complete, PM-readable `.im-a-pm/flows.json` for HEAD.
 
 1. **Start clean.** If code has uncommitted changes, ask the person to commit them first, or map
-   HEAD and say so. If `.i-am-pm/flows.json` exists, read it and prefer `/i-am-pm sync`, unless
+   HEAD and say so. If `.im-a-pm/flows.json` exists, read it and prefer `/im-a-pm sync`, unless
    they want a full rebuild. On a rebuild, keep every flow id and node id that still describes the
    same thing, so diffs across branches stay meaningful.
 2. **Inventory entrypoints.** Use `reference/entrypoints.md` to find all of them:
@@ -128,18 +128,18 @@ Goal: a correct, complete, PM-readable `.i-am-pm/flows.json` for HEAD.
 11. **Validate, stamp, render.** Run `validate` and fix every error. Then run `stamp`, which
     records HEAD in `app.commit`, and then `render`, which opens the viewer. Tell the person how
     many flows and decisions you mapped, list the findings, give the viewer URL, and suggest
-    committing `.i-am-pm/flows.json`.
+    committing `.im-a-pm/flows.json`.
 
-## /i-am-pm sync
+## /im-a-pm sync
 
 Goal: bring the map from `app.commit` up to HEAD by re-checking only what changed.
 
-1. **Run `sync`.** The script diffs `app.commit..HEAD` (excluding `.i-am-pm/`) and then:
+1. **Run `sync`.** The script diffs `app.commit..HEAD` (excluding `.im-a-pm/`) and then:
    - moves every `line`/`endLine` in the map to where that code is now, and follows renamed files
    - marks each step whose `calls` or `anchors` overlap a changed block (or a deleted file) as
      `stale`, with the reasons
    - lists added lines that look like entrypoints, and changed files the map never references
-   - records HEAD in `app.commit`, writes `.i-am-pm/sync.json`, and opens the viewer, where stale
+   - records HEAD in `app.commit`, writes `.im-a-pm/sync.json`, and opens the viewer, where stale
      steps show a "re-check" badge
 
    The line shifts and the stamp happen immediately, so never run `sync` twice to "retry". The
@@ -157,17 +157,17 @@ Goal: bring the map from `app.commit` up to HEAD by re-checking only what change
    nothing. If a mapped entrypoint was removed, remove its flow.
 4. **Refresh findings.** Remove the ones the change resolved, and add new ones.
 5. **Validate and render.** `validate` must show no stale warnings. Then `render` with
-   `--base` set to the map as it was before the sync: `git show HEAD:.i-am-pm/flows.json >
-   .i-am-pm/base.json`, if the map was committed. The open tab reloads with the changes
+   `--base` set to the map as it was before the sync: `git show HEAD:.im-a-pm/flows.json >
+   .im-a-pm/base.json`, if the map was committed. The open tab reloads with the changes
    highlighted. Summarize the behavioral diff and suggest committing `flows.json`.
 
-## /i-am-pm view
+## /im-a-pm view
 
 Run `view`. It renders the current map and opens it. The served viewer sends questions, change
-requests and "flag as wrong" reports to `.i-am-pm/requests/`. Opened as a plain file, it
-copies a ready-to-paste `/i-am-pm` command instead.
+requests and "flag as wrong" reports to `.im-a-pm/requests/`. Opened as a plain file, it
+copies a ready-to-paste `/im-a-pm` command instead.
 
-## /i-am-pm ask "<question>"
+## /im-a-pm ask "<question>"
 
 Answer from the map first, then confirm against the code. Use `trace <flow> [<outcome>] [--follow]`
 to get the ordered functions of the path in question, including the flows it hands off to, and
@@ -175,7 +175,7 @@ read them. Never answer from the map alone. Answer in product language, and name
 nodes involved (`publish-video/is-draft`). Say when the code and the map disagree, and if they do,
 fix the map.
 
-## /i-am-pm change <flow>[/<node>] "<request>"
+## /im-a-pm change <flow>[/<node>] "<request>"
 
 A PM asks for a business change. The output is a branch for engineering review, never a direct
 push.
@@ -183,36 +183,36 @@ push.
 1. Restate the change as **current rule → new rule**. Use the node's `calls` to find the code,
    and list every flow whose `calls` share those functions (the impact). If the request is
    ambiguous, ask one question before editing.
-2. Create a branch `i-am-pm/<short-slug>` from the current branch.
+2. Create a branch `im-a-pm/<short-slug>` from the current branch.
 3. Make the smallest code change that implements the new rule, and add or update tests. Run the
    project's tests if they can run here, and report the results honestly.
 4. Commit the code and the tests.
-5. Update `.i-am-pm/flows.json` for the new behavior: the same ids where the meaning is
+5. Update `.im-a-pm/flows.json` for the new behavior: the same ids where the meaning is
    unchanged, with updated `calls` and line numbers. Run `validate` and `stamp`, then commit the
    map as a separate commit, so that `app.commit` points at the code it describes.
 6. Do not push unless the person asks. Show the behavioral diff against the original branch
-   (`/i-am-pm diff <original-branch>`), which renders and opens the viewer.
+   (`/im-a-pm diff <original-branch>`), which renders and opens the viewer.
 
-## /i-am-pm inbox
+## /im-a-pm inbox
 
-Process `.i-am-pm/requests/*.json` (written by the served viewer), oldest first:
-- `kind: "ask"` works like `/i-am-pm ask`.
-- `kind: "change"` works like `/i-am-pm change`.
+Process `.im-a-pm/requests/*.json` (written by the served viewer), oldest first:
+- `kind: "ask"` works like `/im-a-pm ask`.
+- `kind: "change"` works like `/im-a-pm change`.
 - `kind: "flag"` means a PM believes a node is wrong. Re-check that node against the code, and
   either fix the map or explain why it is right.
 
-Move each handled file to `.i-am-pm/requests/done/`.
+Move each handled file to `.im-a-pm/requests/done/`.
 
-## /i-am-pm diff [<base-ref>]
+## /im-a-pm diff [<base-ref>]
 
 Show what business behavior changed between `<base-ref>` (by default, the repo's default branch)
 and the current map.
 
-1. Get the base map: `git show <base-ref>:.i-am-pm/flows.json > .i-am-pm/base.json`. If the base
+1. Get the base map: `git show <base-ref>:.im-a-pm/flows.json > .im-a-pm/base.json`. If the base
    has no committed map, build one for it in a temporary worktree (`git worktree add <tmp>
    <base-ref>`), reusing ids from the current map, then remove the worktree.
-2. Make sure the current map is in sync (`/i-am-pm sync` if `app.commit` is behind HEAD).
-3. Run `diff .i-am-pm/base.json .i-am-pm/flows.json`, then `render --base .i-am-pm/base.json`.
+2. Make sure the current map is in sync (`/im-a-pm sync` if `app.commit` is behind HEAD).
+3. Run `diff .im-a-pm/base.json .im-a-pm/flows.json`, then `render --base .im-a-pm/base.json`.
    This opens the viewer with the changes highlighted.
 4. Summarize for a PM:
    - flows added or removed

@@ -4,7 +4,7 @@
     "name": "Video API",
     "summary": "Editors upload videos, fill in their details and publish them. Viewers browse the catalog, open a video's page and play it. Every open and play is counted.",
     "repo": "danilojpferreira/video-api",
-    "ref": "i-am-pm/viewers-see-published-only",
+    "ref": "im-a-pm/viewers-see-published-only",
     "commit": "043b40fa6f5405ab2093e98662fcd6707d25c2a4",
     "generatedAt": "2026-11-07T18:16:01Z",
     "syncedAt": "2026-11-07T18:25:49Z"

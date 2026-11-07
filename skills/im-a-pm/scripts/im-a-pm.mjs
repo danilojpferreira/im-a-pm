@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// i-am-pm: validate, sync, trace, diff, render and serve .i-am-pm/flows.json, and install the skills.
+// im-a-pm: validate, sync, trace, diff, render and serve .im-a-pm/flows.json, and install the skills.
 // Node 18+, no dependencies.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -27,7 +27,7 @@ function readJson(file) {
 }
 
 function fail(msg) {
-  console.error(`i-am-pm: ${msg}`);
+  console.error(`im-a-pm: ${msg}`);
   process.exit(1);
 }
 
@@ -236,7 +236,7 @@ export function render(head, base, { served = false, fragment = false } = {}) {
   const template = fs.readFileSync(VIEWER, 'utf8');
   const payload = { head, base: base || null, diff: base ? diff(base, head) : null, served };
   const json = JSON.stringify(payload).replace(/</g, '\\u003c');
-  const marker = '/*__I_AM_PM_DATA__*/null';
+  const marker = '/*__IM_A_PM_DATA__*/null';
   if (!template.includes(marker)) fail('viewer template is missing the data marker');
   const title = `<title>${String(head.app?.name || 'App').replace(/[<&]/g, '')} business map</title>`;
   const body = template.replace(marker, () => json).replace('<title>Business map</title>', () => title);
@@ -341,13 +341,13 @@ export function sync(map, { cwd, since }) {
   const from = since || map.app?.commit;
   if (!from) fail('the map has no app.commit. Run `stamp` once the map matches HEAD, or pass --since <commit>.');
   try { git(['cat-file', '-e', `${from}^{commit}`], root); }
-  catch { fail(`commit ${from} is not in this clone (shallow clone or rewritten history). Fetch more history (git fetch --deepen=200) or rebuild the map with /i-am-pm build.`); }
+  catch { fail(`commit ${from} is not in this clone (shallow clone or rewritten history). Fetch more history (git fetch --deepen=200) or rebuild the map with /im-a-pm build.`); }
   const head = git(['rev-parse', 'HEAD'], root).trim();
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD'], root).trim();
-  const dirty = git(['status', '--porcelain', '--', '.', ':(exclude).i-am-pm'], root).split('\n').filter(Boolean).map((l) => l.slice(3));
+  const dirty = git(['status', '--porcelain', '--', '.', ':(exclude).im-a-pm'], root).split('\n').filter(Boolean).map((l) => l.slice(3));
   const report = { from, to: head, upToDate: false, flows: {}, renamed: [], unmapped: [], entrypointCandidates: [], uncommitted: dirty };
 
-  const files = parseUnifiedDiff(git(['diff', '-U0', '-M', '--no-color', '--no-ext-diff', from, head, '--', '.', ':(exclude).i-am-pm'], root));
+  const files = parseUnifiedDiff(git(['diff', '-U0', '-M', '--no-color', '--no-ext-diff', from, head, '--', '.', ':(exclude).im-a-pm'], root));
   if (!files.length) report.upToDate = true;
   const byOld = new Map(files.filter((f) => f.oldPath).map((f) => [f.oldPath, f]));
   const referenced = new Set();
@@ -449,10 +449,10 @@ export function serve({ dir, port, quiet = false }) {
         return res.end(render(head, base, { served: true }));
       } catch (e) {
         res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
-        return res.end(`i-am-pm: cannot render the map: ${e.message}`);
+        return res.end(`im-a-pm: cannot render the map: ${e.message}`);
       }
     }
-    if (req.method === 'GET' && url === '/api/ping') return json(res, 200, { app: 'i-am-pm', dir, pid: process.pid, viewerSeenMsAgo: lastSeen ? Date.now() - lastSeen : null });
+    if (req.method === 'GET' && url === '/api/ping') return json(res, 200, { app: 'im-a-pm', dir, pid: process.pid, viewerSeenMsAgo: lastSeen ? Date.now() - lastSeen : null });
     if (req.method === 'GET' && url === '/api/version') { lastSeen = Date.now(); return json(res, 200, { version: version(dir) }); }
     if (req.method === 'POST' && url === '/api/requests') {
       let body = '';
@@ -466,7 +466,7 @@ export function serve({ dir, port, quiet = false }) {
           const name = `${new Date().toISOString().replace(/[:.]/g, '-')}-${r.kind}.json`;
           const record = { kind: r.kind, flow: r.flow || null, node: r.node || null, text: String(r.text), createdAt: new Date().toISOString() };
           fs.writeFileSync(path.join(reqDir, name), JSON.stringify(record, null, 2));
-          json(res, 201, { ok: true, file: path.join('.i-am-pm', 'requests', name) });
+          json(res, 201, { ok: true, file: path.join('.im-a-pm', 'requests', name) });
         } catch (e) { json(res, 400, { ok: false, error: e.message }); }
       });
       return;
@@ -477,8 +477,8 @@ export function serve({ dir, port, quiet = false }) {
     server.once('error', reject);
     server.listen(port, '127.0.0.1', () => {
       if (!quiet) {
-        console.log(`i-am-pm viewer: http://127.0.0.1:${port}/`);
-        console.log(`questions and change requests land in ${path.join(dir, 'requests')}/ (run /i-am-pm inbox)`);
+        console.log(`im-a-pm viewer: http://127.0.0.1:${port}/`);
+        console.log(`questions and change requests land in ${path.join(dir, 'requests')}/ (run /im-a-pm inbox)`);
       }
       resolve(server);
     });
@@ -489,7 +489,7 @@ function ping(port, dir) {
   return new Promise((resolve) => {
     const req = http.get({ host: '127.0.0.1', port, path: '/api/ping', timeout: 600 }, (res) => {
       let b = ''; res.on('data', (c) => { b += c; });
-      res.on('end', () => { try { const j = JSON.parse(b); resolve(j.app === 'i-am-pm' && (!dir || j.dir === path.resolve(dir)) ? j : null); } catch { resolve(null); } });
+      res.on('end', () => { try { const j = JSON.parse(b); resolve(j.app === 'im-a-pm' && (!dir || j.dir === path.resolve(dir)) ? j : null); } catch { resolve(null); } });
     });
     req.on('timeout', () => { req.destroy(); resolve(null); });
     req.on('error', () => resolve(null));
@@ -502,7 +502,7 @@ function portFree(port) {
   });
 }
 
-// Start (or reuse) a background viewer server for this .i-am-pm folder.
+// Start (or reuse) a background viewer server for this .im-a-pm folder.
 export async function ensureServer(dir) {
   dir = path.resolve(dir);
   const stateFile = path.join(dir, 'server.json');
@@ -529,7 +529,7 @@ export async function ensureServer(dir) {
 }
 
 export function openBrowser(url) {
-  if (process.env.I_AM_PM_NO_OPEN || process.env.CI) return false;
+  if (process.env.IM_A_PM_NO_OPEN || process.env.CI) return false;
   let cmd, args;
   if (process.platform === 'darwin') { cmd = 'open'; args = [url]; }
   else if (process.platform === 'win32') { cmd = 'cmd'; args = ['/c', 'start', '""', url]; }
@@ -581,7 +581,7 @@ const AGENT_DIRS = {
   gemini: ['.gemini/skills', '.gemini/skills'],
   all: [['.claude/skills', '.agents/skills'], ['.claude/skills', '.agents/skills']],
 };
-const SKILL_NAMES = ['i-am-pm', 'iampm'];
+const SKILL_NAMES = ['im-a-pm', 'imapm'];
 
 function installTargets(args) {
   if (typeof args.dir === 'string') return [path.resolve(args.dir)];
@@ -612,28 +612,28 @@ function install(args, remove = false) {
 
 // ---------------------------------------------------------------- cli
 
-const USAGE = `i-am-pm: business-flow maps of a codebase, for product managers
+const USAGE = `im-a-pm: business-flow maps of a codebase, for product managers
 
-usage (run from the repository root; the map lives in .i-am-pm/flows.json):
-  i-am-pm validate [flows.json]
-  i-am-pm render   [flows.json] [--base base.json] [--no-open] [--out file.html] [--fragment]
-  i-am-pm view     [flows.json]                  open the viewer (starts a local server)
-  i-am-pm sync     [flows.json] [--since <commit>] [--json] [--no-open]
-  i-am-pm stamp    [flows.json]
-  i-am-pm trace    <flow-id> [<outcome-id>] [--follow] [--file flows.json]
-  i-am-pm diff     <base.json> <head.json> [--json]
-  i-am-pm serve    [--dir .i-am-pm] [--port 4178]   foreground server
-  i-am-pm stop                                     stop the background viewer server
-  i-am-pm install   [--agent all|claude|codex|copilot|cursor|gemini] [--project [dir]] [--dir <skills-dir>]
-  i-am-pm uninstall [same options]
+usage (run from the repository root; the map lives in .im-a-pm/flows.json):
+  im-a-pm validate [flows.json]
+  im-a-pm render   [flows.json] [--base base.json] [--no-open] [--out file.html] [--fragment]
+  im-a-pm view     [flows.json]                  open the viewer (starts a local server)
+  im-a-pm sync     [flows.json] [--since <commit>] [--json] [--no-open]
+  im-a-pm stamp    [flows.json]
+  im-a-pm trace    <flow-id> [<outcome-id>] [--follow] [--file flows.json]
+  im-a-pm diff     <base.json> <head.json> [--json]
+  im-a-pm serve    [--dir .im-a-pm] [--port 4178]   foreground server
+  im-a-pm stop                                     stop the background viewer server
+  im-a-pm install   [--agent all|claude|codex|copilot|cursor|gemini] [--project [dir]] [--dir <skills-dir>]
+  im-a-pm uninstall [same options]
 
 render, view and sync open the map in your browser (served at http://127.0.0.1:4178 or the next
-free port). An open tab reloads itself after each render. Set I_AM_PM_NO_OPEN=1 to never open one.`;
+free port). An open tab reloads itself after each render. Set IM_A_PM_NO_OPEN=1 to never open one.`;
 
 async function main() {
   const [cmd, ...rest] = process.argv.slice(2);
   const args = parseArgs(rest);
-  const file = args._[0] || '.i-am-pm/flows.json';
+  const file = args._[0] || '.im-a-pm/flows.json';
   const open = !args['no-open'];
 
   if (cmd === 'validate') {
@@ -694,7 +694,7 @@ async function main() {
     map.app.ref = git(['rev-parse', '--abbrev-ref', 'HEAD'], cwd).trim();
     map.app.syncedAt = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
     fs.writeFileSync(file, JSON.stringify(map, null, 2) + '\n');
-    const dirty = git(['status', '--porcelain', '--', '.', ':(exclude).i-am-pm'], cwd).trim();
+    const dirty = git(['status', '--porcelain', '--', '.', ':(exclude).im-a-pm'], cwd).trim();
     console.log(`✓ map stamped at ${map.app.commit.slice(0, 7)} (${map.app.ref})`);
     if (dirty) console.log(`warning: uncommitted code changes exist. The map should describe committed code only:\n${dirty}`);
     return;
@@ -703,7 +703,7 @@ async function main() {
   if (cmd === 'trace') {
     const flowId = args._[0];
     if (!flowId) fail('usage: trace <flow-id> [<outcome-id>] [--follow] [--file flows.json]');
-    console.log(printTrace(readJson(args.file || '.i-am-pm/flows.json'), flowId, args._[1], !!args.follow));
+    console.log(printTrace(readJson(args.file || '.im-a-pm/flows.json'), flowId, args._[1], !!args.follow));
     return;
   }
 

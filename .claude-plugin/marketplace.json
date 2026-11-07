@@ -1,9 +1,9 @@
 {
-  "name": "i-am-pm",
+  "name": "im-a-pm",
   "owner": { "name": "Danilo Pereira" },
   "plugins": [
     {
-      "name": "i-am-pm",
+      "name": "im-a-pm",
       "source": "./",
       "description": "Business-flow maps of a codebase for product managers, with sync, change requests and behavioral diffs."
     }

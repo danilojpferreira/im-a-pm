@@ -1,10 +1,10 @@
 {
-  "name": "i-am-pm",
+  "name": "im-a-pm",
   "version": "0.3.0",
   "description": "Business-flow maps of a codebase for product managers: every entrypoint as a flowchart of business decisions, with sync, change requests, behavioral diffs and an auto-opening viewer.",
   "author": { "name": "Danilo Pereira" },
-  "homepage": "https://github.com/danilojpferreira/i-am-pm",
-  "repository": "https://github.com/danilojpferreira/i-am-pm",
+  "homepage": "https://github.com/danilojpferreira/im-a-pm",
+  "repository": "https://github.com/danilojpferreira/im-a-pm",
   "license": "MIT",
   "keywords": ["product-management", "business-rules", "flowchart", "code-understanding", "agent-skills"]
 }

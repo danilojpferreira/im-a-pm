@@ -1,16 +1,16 @@
-# i-am-pm
+# im-a-pm
 
-**See your codebase the way a product manager does.** i-am-pm is an agent skill that turns a
+**See your codebase the way a product manager does.** im-a-pm is an agent skill that turns a
 repository into a map of business flows. Every entrypoint becomes a flowchart: an API route, a
 queue worker, an event handler, a saga, a cron job. Each flowchart runs from the trigger, through
 the business decisions, to what the user gets back. You can ask questions about it, request
 changes from it, and see which business rules a branch changes.
 
 It works with **Claude Code, Codex, GitHub Copilot, Cursor and Gemini CLI**, and with any other
-agent that reads [Agent Skills](https://agentskills.io) (`SKILL.md`). Use `/i-am-pm`, or the
-shorter `/iampm`.
+agent that reads [Agent Skills](https://agentskills.io) (`SKILL.md`). Use `/im-a-pm`, or the
+shorter `/imapm`.
 
-![The i-am-pm viewer showing the "Publish a video" flow, with a changed rule highlighted](docs/viewer.png)
+![The im-a-pm viewer showing the "Publish a video" flow, with a changed rule highlighted](docs/viewer.png)
 
 ---
 
@@ -18,7 +18,7 @@ shorter `/iampm`.
 
 Product managers ask engineers "how does X work today?" all day. The answer is in the code,
 spread across controllers, services, validation annotations, SQL filters and queue workers.
-i-am-pm has your coding agent read all of that once and write it down as decisions a PM can
+im-a-pm has your coding agent read all of that once and write it down as decisions a PM can
 follow:
 
 > **Publish a video**: Does the video exist and is it not deleted? → Is it still a draft? →
@@ -51,40 +51,40 @@ Every box keeps a link to the exact lines it came from, so engineers can check i
 
 ```bash
 # 1. Install the skills for every supported agent (needs Node 18+)
-npx github:danilojpferreira/i-am-pm install
+npx github:danilojpferreira/im-a-pm install
 
 # 2. In the repository you want to map, start your agent and run:
-/i-am-pm build
+/im-a-pm build
 ```
 
-The agent inventories the entrypoints, traces each one, writes `.i-am-pm/flows.json`, and opens
-the map at `http://127.0.0.1:4178`. Commit `.i-am-pm/flows.json` so that every branch and pull
+The agent inventories the entrypoints, traces each one, writes `.im-a-pm/flows.json`, and opens
+the map at `http://127.0.0.1:4178`. Commit `.im-a-pm/flows.json` so that every branch and pull
 request carries its own map.
 
 ## Install
 
-The installer copies two skill folders, `i-am-pm` and its alias `iampm`, to where your agents
+The installer copies two skill folders, `im-a-pm` and its alias `imapm`, to where your agents
 look for skills. By default it installs for your user account (all projects) in
 `~/.claude/skills` and `~/.agents/skills`. Between them, those two folders cover every agent
 below.
 
 ```bash
-npx github:danilojpferreira/i-am-pm install                    # all agents, your user account
-npx github:danilojpferreira/i-am-pm install --agent codex      # one agent
-npx github:danilojpferreira/i-am-pm install --project          # this repository only
-npx github:danilojpferreira/i-am-pm install --dir ~/my/skills  # any folder
-npx github:danilojpferreira/i-am-pm uninstall                  # same options
+npx github:danilojpferreira/im-a-pm install                    # all agents, your user account
+npx github:danilojpferreira/im-a-pm install --agent codex      # one agent
+npx github:danilojpferreira/im-a-pm install --project          # this repository only
+npx github:danilojpferreira/im-a-pm install --dir ~/my/skills  # any folder
+npx github:danilojpferreira/im-a-pm uninstall                  # same options
 ```
 
 | Agent | `--agent` | User install | `--project` install | How to call it |
 |---|---|---|---|---|
-| Claude Code | `claude` | `~/.claude/skills` | `.claude/skills` | `/i-am-pm build` |
-| Codex | `codex` | `~/.agents/skills` | `.agents/skills` | `$i-am-pm build`, or pick it from `/skills` |
-| GitHub Copilot (agent mode, CLI, cloud agent) | `copilot` | `~/.copilot/skills` | `.github/skills` | "use i-am-pm to build the map" |
-| Cursor | `cursor` | `~/.cursor/skills` | `.cursor/skills` | "use i-am-pm to build the map" |
-| Gemini CLI | `gemini` | `~/.gemini/skills` | `.gemini/skills` | "use i-am-pm to build the map" |
+| Claude Code | `claude` | `~/.claude/skills` | `.claude/skills` | `/im-a-pm build` |
+| Codex | `codex` | `~/.agents/skills` | `.agents/skills` | `$im-a-pm build`, or pick it from `/skills` |
+| GitHub Copilot (agent mode, CLI, cloud agent) | `copilot` | `~/.copilot/skills` | `.github/skills` | "use im-a-pm to build the map" |
+| Cursor | `cursor` | `~/.cursor/skills` | `.cursor/skills` | "use im-a-pm to build the map" |
+| Gemini CLI | `gemini` | `~/.gemini/skills` | `.gemini/skills` | "use im-a-pm to build the map" |
 
-Agents that support slash commands for skills accept `/i-am-pm build` and `/iampm build`. Every
+Agents that support slash commands for skills accept `/im-a-pm build` and `/imapm build`. Every
 agent also picks the skill up from a plain request, such as "map this repo for a PM" or "what
 business rules did this branch change?".
 
@@ -94,19 +94,19 @@ business rules did this branch change?".
 **Claude Code plugin marketplace**
 
 ```text
-/plugin marketplace add danilojpferreira/i-am-pm
-/plugin install i-am-pm@i-am-pm
+/plugin marketplace add danilojpferreira/im-a-pm
+/plugin install im-a-pm@im-a-pm
 ```
 
 **From a clone**
 
 ```bash
-git clone https://github.com/danilojpferreira/i-am-pm
-node i-am-pm/skills/i-am-pm/scripts/i-am-pm.mjs install
+git clone https://github.com/danilojpferreira/im-a-pm
+node im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs install
 ```
 
-**By hand.** Copy `skills/i-am-pm` and `skills/iampm` into your agent's skills folder. Keep them
-side by side, because the alias reads `../i-am-pm/SKILL.md`.
+**By hand.** Copy `skills/im-a-pm` and `skills/imapm` into your agent's skills folder. Keep them
+side by side, because the alias reads `../im-a-pm/SKILL.md`.
 
 **Notes**
 - Copilot reads `.claude/skills`, `.github/skills` and `.agents/skills` in a project. If you
@@ -118,7 +118,7 @@ side by side, because the alias reads `../i-am-pm/SKILL.md`.
 
 ## Commands
 
-Every command works as `/i-am-pm …` or `/iampm …`.
+Every command works as `/im-a-pm …` or `/imapm …`.
 
 | Command | What happens |
 |---|---|
@@ -126,7 +126,7 @@ Every command works as `/i-am-pm …` or `/iampm …`.
 | `sync` | Updates the map from its recorded commit to `HEAD`. Line references move, changed steps are marked "re-check", new entrypoints are flagged, and the agent re-checks only those. |
 | `view` | Opens the current map. |
 | `ask "<question>"` | Answers in product language, checked against the code, and names the steps involved. |
-| `change <flow>[/<step>] "<request>"` | Restates the rule (current → new) and lists the flows affected. It then implements the change on an `i-am-pm/<slug>` branch with tests, updates the map, and shows the behavioral diff. Nothing is pushed. |
+| `change <flow>[/<step>] "<request>"` | Restates the rule (current → new) and lists the flows affected. It then implements the change on an `im-a-pm/<slug>` branch with tests, updates the map, and shows the behavioral diff. Nothing is pushed. |
 | `inbox` | Processes questions, change requests and "flag as wrong" reports sent from the viewer. |
 | `diff [<base-ref>]` | Compares business behavior with another branch (by default, the main branch) and opens the map with the changes highlighted. |
 
@@ -134,16 +134,16 @@ Every command works as `/i-am-pm …` or `/iampm …`.
 
 ```mermaid
 flowchart LR
-  B["/i-am-pm build"] --> M[".i-am-pm/flows.json<br/>stamped with commit A"]
+  B["/im-a-pm build"] --> M[".im-a-pm/flows.json<br/>stamped with commit A"]
   M --> V["Viewer opens<br/>127.0.0.1:4178"]
-  M -->|code changes, commits B, C…| S["/i-am-pm sync<br/>diff A..HEAD"]
+  M -->|code changes, commits B, C…| S["/im-a-pm sync<br/>diff A..HEAD"]
   S -->|"only touched steps<br/>marked re-check"| R[Agent re-checks them]
   R --> M
-  V -->|PM asks or requests a change| C["/i-am-pm change"]
-  C -->|"branch + tests<br/>+ updated map"| D["/i-am-pm diff<br/>behavioral diff"]
+  V -->|PM asks or requests a change| C["/im-a-pm change"]
+  C -->|"branch + tests<br/>+ updated map"| D["/im-a-pm diff<br/>behavioral diff"]
 ```
 
-**The map** is one JSON file, `.i-am-pm/flows.json`. Each flow is a small graph with six kinds
+**The map** is one JSON file, `.im-a-pm/flows.json`. Each flow is a small graph with six kinds
 of steps: the trigger, *decisions*, *actions*, *data* (saved or read), *external* calls (payment
 providers, email, other services) and *outcomes*. Each step has:
 - the business rule in plain words
@@ -152,7 +152,7 @@ providers, email, other services) and *outcomes*. Each step has:
 - a link to the line where the rule lives
 - the ordered list of functions that run for it
 
-The full format is in [`skills/i-am-pm/reference/schema.md`](skills/i-am-pm/reference/schema.md).
+The full format is in [`skills/im-a-pm/reference/schema.md`](skills/im-a-pm/reference/schema.md).
 
 **Your agent does the reading. A small script does the bookkeeping.** Understanding code needs a
 model, so building and re-checking the map is the agent's job. The skill ships a dependency-free
@@ -176,12 +176,12 @@ and shifted the line numbers of everything else.
   "continues in" links for asynchronous hand-offs, and, folded away for engineers, the functions
   in order and where the rule lives.
 - **Ask, Request change, Flag as wrong** on every step. When the viewer is served (the default),
-  these land in `.i-am-pm/requests/` for `/i-am-pm inbox`. When it is opened as a plain file, it
+  these land in `.im-a-pm/requests/` for `/im-a-pm inbox`. When it is opened as a plain file, it
   copies a ready-to-paste command instead.
 - **Opens itself, reloads itself.** `build`, `sync`, `change`, `diff` and `view` start a small
   local server (port 4178, or the next free one) and open your browser. An open tab reloads when
   the map changes. On a machine without a browser (SSH, containers, CI) you get the URL instead.
-  Set `I_AM_PM_NO_OPEN=1` to never open a tab, and run `i-am-pm stop` to stop the server.
+  Set `IM_A_PM_NO_OPEN=1` to never open a tab, and run `im-a-pm stop` to stop the server.
 - **AI search** across all business rules, with answers that cite and highlight the steps they
   rely on. It appears when the page is published as a [Claude artifact](https://claude.ai), which
   lets the page ask Claude. A plain local file has no model to ask, so the box stays hidden there.
@@ -193,7 +193,7 @@ Next.js, FastAPI/Flask/Django, Rails, Laravel, Go, gRPC), GraphQL resolvers, mes
 consumers (Kafka, RabbitMQ, SQS/SNS, Pub/Sub, in-process domain events), webhooks, cron and
 schedulers, queue workers (BullMQ, Sidekiq, Celery), sagas and workflows (Temporal, Step
 Functions, NestJS CQRS sagas), and CLI commands. The guide the agent follows is
-[`skills/i-am-pm/reference/entrypoints.md`](skills/i-am-pm/reference/entrypoints.md).
+[`skills/im-a-pm/reference/entrypoints.md`](skills/im-a-pm/reference/entrypoints.md).
 
 Declarative code is the point, not an edge case. Annotations and decorators, DI containers,
 validation pipes, exception mappers, ORM query filters and config flags are traced as part of
@@ -226,19 +226,19 @@ The agent runs it for you, but you can too. It needs Node 18+ and has no depende
 from the repository root.
 
 ```text
-i-am-pm validate [flows.json]                    check the map
-i-am-pm render   [--base base.json] [--no-open]  write .i-am-pm/index.html and open it
-i-am-pm view                                     open the current map
-i-am-pm sync     [--since <commit>]              update line refs, mark changed steps, stamp HEAD
-i-am-pm stamp                                    record HEAD as the commit the map describes
-i-am-pm trace    <flow> [<outcome>] [--follow]   functions on a path, in order
-i-am-pm diff     <base.json> <head.json>         behavioral diff
-i-am-pm stop                                     stop the viewer server
-i-am-pm install | uninstall [--agent …] [--project] [--dir …]
+im-a-pm validate [flows.json]                    check the map
+im-a-pm render   [--base base.json] [--no-open]  write .im-a-pm/index.html and open it
+im-a-pm view                                     open the current map
+im-a-pm sync     [--since <commit>]              update line refs, mark changed steps, stamp HEAD
+im-a-pm stamp                                    record HEAD as the commit the map describes
+im-a-pm trace    <flow> [<outcome>] [--follow]   functions on a path, in order
+im-a-pm diff     <base.json> <head.json>         behavioral diff
+im-a-pm stop                                     stop the viewer server
+im-a-pm install | uninstall [--agent …] [--project] [--dir …]
 ```
 
-Run it with `npx github:danilojpferreira/i-am-pm <command>`, or with
-`node <skills-folder>/i-am-pm/scripts/i-am-pm.mjs <command>`.
+Run it with `npx github:danilojpferreira/im-a-pm <command>`, or with
+`node <skills-folder>/im-a-pm/scripts/im-a-pm.mjs <command>`.
 
 ## Good to know
 

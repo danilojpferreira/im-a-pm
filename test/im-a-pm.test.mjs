@@ -8,13 +8,13 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   validate, diff, render, sync, parseUnifiedDiff, shiftLine, touches, pathNodes, printTrace, serve,
-} from '../skills/i-am-pm/scripts/i-am-pm.mjs';
+} from '../skills/im-a-pm/scripts/im-a-pm.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const CLI = path.join(ROOT, 'skills/i-am-pm/scripts/i-am-pm.mjs');
+const CLI = path.join(ROOT, 'skills/im-a-pm/scripts/im-a-pm.mjs');
 const EXAMPLE = path.join(ROOT, 'examples/video-api');
 const load = (f) => JSON.parse(fs.readFileSync(path.join(EXAMPLE, f), 'utf8'));
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'i-am-pm-'));
+const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'im-a-pm-'));
 
 // A tiny two-flow map with an asynchronous hand-off: checkout queues an invoice job.
 function miniMap() {
@@ -167,13 +167,13 @@ test('install copies both skills, refuses foreign folders, uninstall removes the
   const dir = path.join(tmp(), 'skills');
   const run = (...a) => execFileSync(process.execPath, [CLI, ...a], { encoding: 'utf8' });
   run('install', '--dir', dir);
-  for (const s of ['i-am-pm', 'iampm']) assert.ok(fs.existsSync(path.join(dir, s, 'SKILL.md')), `${s} installed`);
-  assert.ok(fs.existsSync(path.join(dir, 'i-am-pm/scripts/i-am-pm.mjs')));
+  for (const s of ['im-a-pm', 'imapm']) assert.ok(fs.existsSync(path.join(dir, s, 'SKILL.md')), `${s} installed`);
+  assert.ok(fs.existsSync(path.join(dir, 'im-a-pm/scripts/im-a-pm.mjs')));
   run('install', '--dir', dir); // updating in place works
   run('uninstall', '--dir', dir);
-  assert.ok(!fs.existsSync(path.join(dir, 'i-am-pm')));
-  fs.mkdirSync(path.join(dir, 'iampm'), { recursive: true });
-  fs.writeFileSync(path.join(dir, 'iampm/SKILL.md'), '---\nname: something-else\n---\n');
+  assert.ok(!fs.existsSync(path.join(dir, 'im-a-pm')));
+  fs.mkdirSync(path.join(dir, 'imapm'), { recursive: true });
+  fs.writeFileSync(path.join(dir, 'imapm/SKILL.md'), '---\nname: something-else\n---\n');
   assert.throws(() => run('install', '--dir', dir, '--quiet'), /not this skill/);
 });
 
