@@ -479,7 +479,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
 
   // ------------------------------------------------------------ layout
   const measurer = document.createElement('div');
-  measurer.style.cssText = 'position:absolute;left:-9999px;top:0;width:' + NODE_W + 'px;visibility:hidden';
+  measurer.style.cssText = `position:absolute;left:-9999px;top:0;width:${NODE_W}px;visibility:hidden`;
   document.body.appendChild(measurer);
 
   function nodeHtml(n, flow) {
@@ -799,8 +799,8 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
       ${head.app.summary ? clampHtml('about', 'about', head.app.summary, state.aboutOpen) : '<span class="about"></span>'}
       <div class="stats"><span><b>${head.flows.length}</b> entrypoints</span><span><b>${decisions}</b> decisions</span><span><b>${findings}</b> findings</span></div>
       <nav class="gh" aria-label="im-a-pm on GitHub">
-        <a class="star" href="${esc(PROJECT)}" target="_blank" rel="noopener" title="Like im-a-pm? Give it a star on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></svg>Star</a>
-        <a href="${esc(PROJECT)}/issues/new" target="_blank" rel="noopener" title="Something wrong with im-a-pm? Open an issue on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>Report</a>
+        <a class="star" href="${PROJECT}" target="_blank" rel="noopener" title="Like im-a-pm? Give it a star on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.8l2.8 5.8 6.3.9-4.6 4.4 1.1 6.3L12 17.2l-5.6 3 1.1-6.3L2.9 9.5l6.3-.9z"/></svg>Star</a>
+        <a href="${PROJECT}/issues/new" target="_blank" rel="noopener" title="Something wrong with im-a-pm? Open an issue on GitHub"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 21V4h11l-1.5 4L16 12H5"/></svg>Report</a>
       </nav>`;
     clampable($('about'), () => { state.aboutOpen = !state.aboutOpen; drawTop(); });
     const stale = head.flows.flatMap((f) => f.nodes.filter((n) => n.stale).map((n) => f.title));
