@@ -100,10 +100,12 @@ button, input, textarea { font: inherit; color: inherit; }
 .stats { display: flex; gap: 14px; align-items: baseline; flex: none; font-size: var(--step--1); color: var(--muted); }
 .stats b { font-family: var(--font-display); font-size: var(--step-1); color: var(--ink); font-variant-numeric: tabular-nums; }
 /* One-line text that expands on click. */
-.clamp { display: block; border: 0; background: none; padding: 0; font: inherit; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
-.clamp.open { white-space: normal; }
-.clamp.fits { cursor: default; }
-.clamp:not(.fits):hover { text-decoration: underline dotted; text-underline-offset: 3px; }
+.clampbox { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.clampbox .clamp-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.clampbox.open { display: block; }
+.clampbox.open .clamp-t { white-space: normal; }
+.clampbox.open .more-link { margin-left: 6px; }
+.more-link { flex: none; border: 0; background: none; padding: 0; font: inherit; font-size: var(--step--1); font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 @media (max-width: 720px) { .top { flex-wrap: wrap; } .about { flex-basis: 100%; order: 3; } }
 
 .compare { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 12px; padding: 8px 12px; background: var(--chg-bg); border: 1px solid var(--chg); border-radius: 8px; }
@@ -141,7 +143,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .flowhead h2 { font-size: var(--step-2); }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; color: var(--muted); }
 .trigger { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
-.flowhead .fsum { color: var(--ink); max-width: 100%; }
+.flowhead .fsum { color: var(--ink); }
 .paths { display: flex; flex-wrap: wrap; gap: 6px; }
 .pathbtn .t, .linkbtn .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .pathbtn { max-width: 300px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--surface); padding: 4px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); }
@@ -763,7 +765,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     const findings = head.flows.reduce((s, f) => s + (f.findings || []).length, 0);
     // One line: name, version, description (click to read it all), counts.
     $('top').innerHTML = `<div class="brand"><h1>${esc(head.app.name)}</h1><span class="eyebrow">${esc(head.app.ref || '')}${head.app.commit ? ' @ ' + esc(head.app.commit.slice(0, 7)) : ''}</span></div>
-      ${head.app.summary ? `<button type="button" class="about clamp${state.aboutOpen ? ' open' : ''}" id="about" aria-expanded="${!!state.aboutOpen}">${esc(head.app.summary)}</button>` : '<span class="about"></span>'}
+      ${head.app.summary ? clampHtml('about', 'about', head.app.summary, state.aboutOpen) : '<span class="about"></span>'}
       <div class="stats"><span><b>${head.flows.length}</b> entrypoints</span><span><b>${decisions}</b> decisions</span><span><b>${findings}</b> findings</span></div>`;
     clampable($('about'), () => { state.aboutOpen = !state.aboutOpen; drawTop(); });
     const stale = head.flows.flatMap((f) => f.nodes.filter((n) => n.stale).map((n) => f.title));
@@ -857,12 +859,14 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
     let hidden = 0;
     for (let i = opt.length - 1; i >= 0 && !oneLine(); i--) { opt[i].hidden = true; hidden++; if (more) more.textContent = label(hidden); }
   }
-  // One-line text: clicking expands it, but only when it is actually cut.
-  function clampable(el, toggle) {
-    if (!el) return;
-    if (!el.classList.contains('open') && el.scrollWidth <= el.clientWidth + 1) { el.classList.add('fits'); el.disabled = false; el.title = ''; return; }
-    el.title = el.classList.contains('open') ? 'Show less' : 'Show all';
-    el.addEventListener('click', toggle);
+  // Descriptions are one line by default, with "Show more" when the text is cut.
+  function clampHtml(id, cls, text, open) {
+    return `<div class="clampbox ${cls}${open ? ' open' : ''}" id="${id}"><span class="clamp-t">${esc(text)}</span><button type="button" class="more-link" aria-expanded="${!!open}" hidden>${open ? 'Show less' : 'Show more'}</button></div>`;
+  }
+  function clampable(box, toggle) {
+    if (!box) return;
+    const t = box.querySelector('.clamp-t'), btn = box.querySelector('.more-link');
+    if (box.classList.contains('open') || t.scrollWidth > t.clientWidth + 1) { btn.hidden = false; btn.addEventListener('click', toggle); }
   }
   function drawFlowHead() {
     const f = flowOf(state.flow);
@@ -886,7 +890,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Video API","summary":"Editor
       ...findings.map((x, i) => `<button type="button" class="note" data-f="${i}"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></button>`),
     ];
     $('flowhead').innerHTML = `<div class="meta"><span class="eyebrow">${esc(f.domain || '')}</span>${f.actor ? `<span>Started by <b>${esc(f.actor)}</b></span>` : ''}<span class="trigger">${esc(f.trigger?.kind || '')} · ${esc(f.trigger?.signature || '')}</span></div>
-      <h2>${esc(f.title)}</h2>${f.summary ? `<button type="button" class="fsum clamp${state.summaryOpen ? ' open' : ''}" id="fsum" aria-expanded="${!!state.summaryOpen}">${esc(f.summary)}</button>` : ''}
+      <h2>${esc(f.title)}</h2>${f.summary ? clampHtml('fsum', 'fsum', f.summary, state.summaryOpen) : ''}
       ${startsWhenHtml(f)}
       <div class="paths" role="group" aria-label="Paths" data-fitrow="paths">${chips.join('')}</div>
       ${notes.length ? `<details class="collapse" ${changes.length || findings.length <= 2 ? 'open' : ''}><summary>${changes.length ? `${changes.length} change${changes.length > 1 ? 's' : ''}` : ''}${changes.length && findings.length ? ' · ' : ''}${findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : ''}</summary><div class="notes" style="margin-top:6px">${notes.join('')}</div></details>` : ''}`;
