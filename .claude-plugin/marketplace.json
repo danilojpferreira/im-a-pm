@@ -1,10 +1,11 @@
 {
   "name": "im-a-pm",
   "owner": { "name": "Danilo Pereira" },
+  "description": "The im-a-pm skill: business-flow maps of a codebase for product managers.",
   "plugins": [
     {
       "name": "im-a-pm",
-      "source": "./",
+      "source": "./plugins/im-a-pm",
       "description": "Business-flow maps of a codebase for product managers, with sync, change requests and behavioral diffs."
     }
   ]

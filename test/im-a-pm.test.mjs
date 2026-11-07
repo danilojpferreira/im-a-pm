@@ -9,10 +9,11 @@ import { fileURLToPath } from 'node:url';
 import {
   validate, diff, render, sync, parseUnifiedDiff, shiftLine, touches, pathNodes, printTrace, serve,
   normalizeHttp, channelOf,
-} from '../skills/im-a-pm/scripts/im-a-pm.mjs';
+} from '../plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const CLI = path.join(ROOT, 'skills/im-a-pm/scripts/im-a-pm.mjs');
+/** Absolute path of the helper CLI that the tests run as a separate process. */
+const CLI = path.join(ROOT, 'plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs');
 const EXAMPLE = path.join(ROOT, 'examples/video-api');
 const load = (f) => JSON.parse(fs.readFileSync(path.join(EXAMPLE, f), 'utf8'));
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'im-a-pm-'));
@@ -301,7 +302,7 @@ test('the start node is found by its type, whatever its id', () => {
 test('the version is the same in package.json, the plugin manifest and the README', () => {
   const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
   const version = JSON.parse(read('package.json')).version;
-  assert.equal(JSON.parse(read('.claude-plugin/plugin.json')).version, version, 'bump .claude-plugin/plugin.json with package.json');
+  assert.equal(JSON.parse(read('plugins/im-a-pm/.claude-plugin/plugin.json')).version, version, 'bump plugins/im-a-pm/.claude-plugin/plugin.json with package.json');
   const status = read('README.md').match(/\*\*Status: version (\d+\.\d+)\.\*\*/);
   assert.ok(status, 'README.md needs its "**Status: version X.Y.**" line');
   assert.equal(status[1], version.split('.').slice(0, 2).join('.'), 'update the README status line to the new version');
@@ -309,9 +310,10 @@ test('the version is the same in package.json, the plugin manifest and the READM
 
 test('the alias and the skill list the same commands, and every command has its section', () => {
   const read = (f) => fs.readFileSync(path.join(ROOT, f), 'utf8');
-  const skill = read('skills/im-a-pm/SKILL.md'), alias = read('skills/imapm/SKILL.md');
+  /** The text of the skill's SKILL.md and of its alias's SKILL.md. */
+  const skill = read('plugins/im-a-pm/skills/im-a-pm/SKILL.md'), alias = read('plugins/im-a-pm/skills/imapm/SKILL.md');
   const sentence = (md) => md.match(/^description: .*?(Commands are .*?\.)/m)[1];
-  assert.equal(sentence(alias), sentence(skill).replaceAll('/im-a-pm', '/imapm'), 'copy the command sentence of skills/im-a-pm/SKILL.md into the alias');
+  assert.equal(sentence(alias), sentence(skill).replaceAll('/im-a-pm', '/imapm'), 'copy the command sentence of plugins/im-a-pm/skills/im-a-pm/SKILL.md into the alias');
   const listed = sentence(skill).replace(/^Commands are \/im-a-pm /, '').split(/,\s*(?:and\s+)?/).map((c) => c.split(' ')[0]);
   const sections = [...skill.matchAll(/^## \/im-a-pm (\w+)/gm)].map((x) => x[1]);
   assert.deepEqual(listed, sections, 'every command in the description needs a "## /im-a-pm <command>" section, and the reverse');

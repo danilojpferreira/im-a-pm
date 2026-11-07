@@ -631,9 +631,14 @@ function installTargets(args) {
   return [...new Set(rel.map((r) => path.join(root, r)))];
 }
 
+/**
+ * Copies the skill and its alias into every skills folder that `args` selects, or removes them
+ * from there when `remove` is true. Stops with an error when either skill is missing next to this
+ * script.
+ */
 function install(args, remove = false) {
   const src = path.dirname(SKILL_DIR);
-  for (const name of SKILL_NAMES) if (!fs.existsSync(path.join(src, name, 'SKILL.md'))) fail(`run install from a full copy of the repository (missing skills/${name})`);
+  for (const name of SKILL_NAMES) if (!fs.existsSync(path.join(src, name, 'SKILL.md'))) fail(`run install from a full copy of the repository (missing plugins/im-a-pm/skills/${name})`);
   for (const dir of installTargets(args)) {
     for (const name of SKILL_NAMES) {
       const dest = path.join(dir, name);
