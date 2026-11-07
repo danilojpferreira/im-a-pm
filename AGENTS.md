@@ -18,6 +18,10 @@ This repository *is* the im-a-pm skill. These notes are for agents and people ch
 - `plugins/im-a-pm/README.md` lists everything the plugin runs, writes, serves or fetches. When the
   CLI or the viewer starts doing something new on the person's machine or over the network, add it
   there in the same change.
+- `plugins/im-a-pm/.claude-plugin/icon.png` is the directory listing's icon. It is rendered from
+  `docs/icon.svg` with `rsvg-convert -w 1024 -h 1024 docs/icon.svg -o
+  plugins/im-a-pm/.claude-plugin/icon.png`. Anthropic's directory reads it only once, when the
+  plugin is first submitted: changing it later does not change the listing.
 - Keep the plugin folder free of anything the skill does not run: docs, examples and tests stay
   outside it.
 - Keep the CLI dependency-free and the viewer a single self-contained file. Only Google Fonts may
