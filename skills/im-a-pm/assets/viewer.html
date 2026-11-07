@@ -285,11 +285,13 @@ g.e.faded, g.elabel.faded { opacity: .3; }
 .calls { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; counter-reset: call; }
 .calls li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr); gap: 0 4px; font-size: 0.75rem; counter-increment: call; }
 .calls li::before { content: counter(call) "."; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
-.calls .fn { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.calls .fn { font-family: var(--font-mono); overflow-wrap: break-word; }
 .calls .where { grid-column: 2; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); overflow-wrap: anywhere; }
 .calls .kind { font-size: 0.62rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--external-line); margin-left: 4px; }
-.calls .grp { grid-column: 1 / -1; font-size: 0.72rem; font-weight: 600; color: var(--ink); margin-top: 6px; counter-increment: none; }
-.calls .grp::before { content: none; }
+.calls li.grp { display: block; font-size: 0.75rem; font-weight: 600; color: var(--ink); margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); counter-increment: none; }
+.calls li.grp:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.calls li.grp::before { content: none; }
+.calls .grp-k { display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .missing { max-width: 60ch; margin: 10vh auto; display: flex; flex-direction: column; gap: 10px; }
 
 @media (max-width: 1100px) {
@@ -421,7 +423,11 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
     const fwd = walk('start', out), back = walk(outcomeId, inn);
     const on = new Set([...fwd].filter((x) => back.has(x)));
     // include the body of loops that start on this path
-    if (withLoops) for (const e of g.edges) if (e.loop && e._d !== 'removed' && on.has(e.to)) { const body = walk(e.to, out), toSrc = walk(e.from, inn); for (const x of body) if (toSrc.has(x)) on.add(x); }
+    // Include a loop's steps only when this outcome is reached by leaving the loop.
+    if (withLoops) for (const e of g.edges) if (e.loop && e._d !== 'removed' && on.has(e.to)) {
+      const body = walk(e.to, out), toSrc = walk(e.from, inn), inBody = [...body].filter((x) => toSrc.has(x));
+      if ((inn.get(outcomeId) || []).some((p) => inBody.includes(p))) inBody.forEach((x) => on.add(x));
+    }
     return on;
   }
 
@@ -814,8 +820,9 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
   }
 
   // ------------------------------------------------------------ functions
+  const breakable = (t) => esc(t).replace(/\./g, '.<wbr>').replace(/\(/g, '<wbr>(');
   function callItems(calls) {
-    return (calls || []).map((c) => `<li><span class="fn" style="padding-left:${(c.depth || 0) * 10}px">${esc(c.fn)}${c.kind && c.kind !== 'call' ? `<span class="kind">${esc(c.kind)}</span>` : ''}</span>
+    return (calls || []).map((c) => `<li><span class="fn" style="padding-left:${(c.depth || 0) * 10}px">${breakable(c.fn)}${c.kind && c.kind !== 'call' ? `<span class="kind">${esc(c.kind)}</span>` : ''}</span>
       <span class="where" style="padding-left:${(c.depth || 0) * 10}px">${esc(c.file.split('/').pop())}:${c.line}${c.endLine ? '-' + c.endLine : ''}${c.note ? ` · ${esc(c.note)}` : ''}</span></li>`).join('');
   }
   function pathOrder(g, outcomeId) {
@@ -875,7 +882,7 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
         <p class="muted small">Path buttons above the chart follow one outcome at a time. Scroll or drag to move around; hold Ctrl or ⌘ while scrolling to zoom.</p>
         ${(() => { const target = state.path === 'all' ? g.flow.happyPath : state.path; const nodes = pathOrder(g, target); const total = nodes.reduce((s, n) => s + (n.calls || []).length, 0); if (!total) return '';
           const name = target === g.flow.happyPath ? 'the happy path' : `“${esc(g.flow.outcomes?.[target] || target)}”`;
-          return `<details class="collapse"><summary>For engineers: functions on ${name}, in order (${total})</summary><ol class="calls">${nodes.map((n) => (n.calls || []).length ? `<li class="grp">${esc(n.label)}</li>${callItems(n.calls)}` : '').join('')}</ol></details>`; })()}</div>`;
+          return `<details class="collapse"><summary>For engineers: functions on ${name}, in order (${total})</summary><ol class="calls">${nodes.map((n) => (n.calls || []).length ? `<li class="grp"><span class="grp-k">${TYPE_NAMES[n.type]}</span>${esc(n.label)}</li>${callItems(n.calls)}` : '').join('')}</ol></details>`; })()}</div>`;
     } else {
       const f = g.flow;
       const findings = (f.findings || []).filter((x) => (x.nodes || []).includes(n.id));

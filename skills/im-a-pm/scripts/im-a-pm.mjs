@@ -264,10 +264,12 @@ export function pathNodes(flow, outcomeId) {
   const reach = (from, adj) => { const seen = new Set([from]); const st = [from]; while (st.length) for (const x of adj.get(st.pop()) || []) if (!seen.has(x)) { seen.add(x); st.push(x); } return seen; };
   const fwd = reach('start', out), back = reach(outcomeId, inn);
   const on = new Set([...fwd].filter((x) => back.has(x)));
-  // A path also runs the body of every loop that starts on it (retries, next page, next batch).
+  // A path runs a loop's steps when it leaves through the loop: a batch loop ("any left? no →
+  // done") or a retry that gives up. A happy path that only passes the loop's start does not.
   for (const e of flow.edges) if (e.loop && on.has(e.to)) {
     const body = reach(e.to, out), toSource = reach(e.from, inn);
-    for (const x of body) if (toSource.has(x)) on.add(x);
+    const inBody = [...body].filter((x) => toSource.has(x));
+    if ((inn.get(outcomeId) || []).some((p) => inBody.includes(p))) inBody.forEach((x) => on.add(x));
   }
   const indeg = new Map([...on].map((x) => [x, inn.get(x).filter((p) => on.has(p)).length]));
   const order = [], q = [...on].filter((x) => indeg.get(x) === 0);
