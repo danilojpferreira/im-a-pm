@@ -22,10 +22,11 @@
     {
       "id": "publish-video",                   // stable kebab-case slug; reuse it on rebuilds
       "title": "Publish a video",              // verb + object, PM wording
+      "surface": "api",                        // optional: the app it belongs to (web, mobile, admin, api…); monorepos
       "domain": "Catalog",                     // groups flows in the sidebar
       "actor": "Content editor",               // who triggers it (user role, system, partner)
       "trigger": {
-        "kind": "http",                        // http | graphql | event | job | cron | cli | webhook | saga | other
+        "kind": "http",                        // http | graphql | event | job | cron | cli | webhook | saga | page | ui | other
         "signature": "PATCH /videos/{id}/publish",
         // "channel": "queue:invoice-email",    // async flows only: what starts this flow (see "Hand-offs")
         "anchors": [{ "file": "src/.../VideoController.java", "line": 101 }]
@@ -184,10 +185,25 @@ the same string in `trigger.channel`:
 "trigger": { "kind": "job", "signature": "BullMQ worker invoice-email", "channel": "queue:invoice-email", "anchors": [ … ] }
 ```
 
-Channels are `<kind>:<name>`, with kind one of `queue`, `event`, `command`, `schedule`, `topic`
-or `webhook`, and the name as the code spells it (`event:UserCreatedEvent`,
-`command:CreateWalletCommand`). Several flows may start from one channel, and one step may emit
-several. Commands executed inline by a request (a controller calling the command bus and
+Channels are `<kind>:<name>`, with kind one of `queue`, `event`, `command`, `schedule`, `topic`,
+`webhook`, `graphql` or `rpc`, and the name as the code spells it (`event:UserCreatedEvent`,
+`command:CreateWalletCommand`, `graphql:Mutation.createOrder`).
+
+**Screens calling the API** use `http:<METHOD> <path>`, for example `http:POST /orders`. An
+HTTP flow (`trigger.kind: "http"`) is started by its own route without declaring a channel:
+`POST /orders` starts from `http:POST /orders`. Routes are compared with their parameters
+normalized, so `/orders/{id}`, `/orders/:id` and `/orders/[id]` match. In the viewer, the API
+flow then says "Called from" the screen, and the screen's step "continues in" the API flow.
+
+```jsonc
+// web flow "pay-for-order", step "call-api"
+"emits": [{ "channel": "http:POST /orders" }]
+
+// api flow "place-order": nothing to add, its trigger is already POST /orders
+"trigger": { "kind": "http", "signature": "POST /orders", … }
+```
+
+Several flows may start from one channel, and one step may emit several. Commands executed inline by a request (a controller calling the command bus and
 awaiting the result) are part of that flow, not a hand-off. Calls to systems outside the
 repository (Stripe, email, OpenAI) are `external` nodes, not `emits`, unless that system calls
 back into a flow of this app (a webhook), which then has `trigger.kind: "webhook"`.
@@ -209,6 +225,7 @@ warns while any remain, and the viewer marks them "re-check".
 - Every node is reachable from `start`. Every non-outcome node has at least one outgoing edge.
 - `outcome` nodes have no outgoing edges. The graph has no cycles except through edges marked
   `"loop": true`, which must point back to an earlier step.
+- `surface`, when present, is a non-empty name.
 - `fanout.mode` is `parallel`, `each` or `batch`, with an `over`. `join.mode` is `all`, `any` or
   `first`.
 - Decisions have 2+ outgoing edges, each with a `label`.

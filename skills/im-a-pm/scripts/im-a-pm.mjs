@@ -15,7 +15,27 @@ const NODE_TYPES = new Set(['start', 'decision', 'action', 'data', 'external', '
 const RESULTS = new Set(['success', 'rejected', 'error']);
 const CONFIDENCE = new Set(['high', 'medium', 'low']);
 const ID_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;
-const CHANNEL_RE = /^(queue|event|command|schedule|topic|webhook):[A-Za-z0-9_.:/-]+$/;
+const CHANNEL_RE = /^(queue|event|command|schedule|topic|webhook|graphql|rpc):[A-Za-z0-9_.:/-]+$|^http:(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS) \/\S*$/;
+const CHANNEL_HINT = 'queue:<name>, event:<name>, command:<name>, schedule:<name>, graphql:<Type.field> or http:<METHOD> /path';
+
+// A screen that calls the API hands off to the flow behind that route. Routes are compared with
+// their parameters normalized, so /orders/{id}, /orders/:id and /orders/[id] are the same.
+export function normalizeHttp(text) {
+  const m = String(text || '').trim().match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(\S+)/i);
+  if (!m) return null;
+  let route = m[2].split('?')[0].replace(/\/+$/, '') || '/';
+  if (!route.startsWith('/')) route = '/' + route;
+  route = route.replace(/\{[^}]+\}|:[A-Za-z_]\w*|\[[^\]]+\]/g, ':param');
+  return `http:${m[1].toUpperCase()} ${route}`;
+}
+export function normalizeChannel(channel) {
+  return String(channel || '').startsWith('http:') ? (normalizeHttp(channel.slice(5)) || channel) : channel;
+}
+// What starts a flow: its declared trigger.channel, or `http:METHOD /path` for an HTTP route.
+export function channelOf(flow) {
+  if (flow?.trigger?.channel) return normalizeChannel(flow.trigger.channel);
+  return flow?.trigger?.kind === 'http' ? normalizeHttp(flow.trigger.signature) : null;
+}
 const FANOUT_MODES = new Set(['parallel', 'batch', 'each']);
 const JOIN_MODES = new Set(['all', 'any', 'first']);
 const CALL_KINDS = new Set(['call', 'framework', 'validation', 'query', 'config', 'event']);
@@ -93,14 +113,15 @@ export function validate(map) {
       } else if (n.type !== 'outcome') warnings.push(`${w}: no calls (function order unknown)`);
       if (n.emits !== undefined) {
         if (!Array.isArray(n.emits)) errors.push(`${w}: emits must be an array`);
-        else n.emits.forEach((e, i) => { if (!CHANNEL_RE.test(e.channel || '')) errors.push(`${w}: emits[${i}].channel must look like queue:<name>, event:<name>, command:<name> or schedule:<name>`); });
+        else n.emits.forEach((e, i) => { if (!CHANNEL_RE.test(e.channel || '')) errors.push(`${w}: emits[${i}].channel must look like ${CHANNEL_HINT}`); });
       }
       if (n.fanout !== undefined && (!FANOUT_MODES.has(n.fanout?.mode) || !n.fanout?.over)) errors.push(`${w}: fanout needs mode (parallel | batch | each) and over (what is split)`);
       if (n.join !== undefined && !JOIN_MODES.has(n.join?.mode)) errors.push(`${w}: join.mode must be all | any | first`);
       if (n.implicit !== undefined && typeof n.implicit !== 'boolean') errors.push(`${w}: implicit must be true or false`);
       if (n.stale) warnings.push(`${w}: needs re-check after code changes (${(n.stale.reasons || []).join('; ')})`);
     }
-    if (flow.trigger?.channel !== undefined && !CHANNEL_RE.test(flow.trigger.channel)) errors.push(`${where}: trigger.channel must look like queue:<name>, event:<name>, command:<name> or schedule:<name>`);
+    if (flow.trigger?.channel !== undefined && !CHANNEL_RE.test(flow.trigger.channel)) errors.push(`${where}: trigger.channel must look like ${CHANNEL_HINT}`);
+    if (flow.surface !== undefined && (typeof flow.surface !== 'string' || !flow.surface.trim())) errors.push(`${where}: surface must be a name such as web, mobile or api`);
     const starts = flow.nodes.filter((n) => n.type === 'start');
     if (starts.length !== 1) errors.push(`${where}: needs exactly one start node (has ${starts.length})`);
 
@@ -147,9 +168,9 @@ export function validate(map) {
     }
   }
   // Hand-offs between flows: every emitted channel should start some flow.
-  const consumers = new Set((map.flows || []).map((f) => f.trigger?.channel).filter(Boolean));
+  const consumers = new Set((map.flows || []).map(channelOf).filter(Boolean));
   for (const f of map.flows || []) for (const n of f.nodes || []) for (const e of n.emits || []) {
-    if (e.channel && !consumers.has(e.channel)) warnings.push(`flow "${f.id}" node "${n.id}": emits ${e.channel} but no flow starts from it`);
+    if (e.channel && !consumers.has(normalizeChannel(e.channel))) warnings.push(`flow "${f.id}" node "${n.id}": emits ${e.channel} but no flow starts from it${e.channel.startsWith('http:') ? ' (if this API is not in the repository, make the step an external call instead)' : ''}`);
   }
   return { errors, warnings };
 }
@@ -173,7 +194,7 @@ export function diff(base, head) {
     const bn = new Map(bf.nodes.map((n) => [n.id, n]));
     const hn = new Map(hf.nodes.map((n) => [n.id, n]));
     const d = { nodes: { added: [], removed: [], changed: [], implChanged: [] }, edges: { added: [], removed: [] }, fields: {} };
-    for (const k of ['title', 'summary', 'happyPath']) {
+    for (const k of ['title', 'summary', 'happyPath', 'surface']) {
       if (JSON.stringify(bf[k]) !== JSON.stringify(hf[k])) d.fields[k] = [bf[k], hf[k]];
     }
     if (bf.trigger?.signature !== hf.trigger?.signature) d.fields.trigger = [bf.trigger?.signature, hf.trigger?.signature];
@@ -298,20 +319,20 @@ export function printTrace(map, flowId, outcomeId, follow = false, seen = new Se
     if (!n.calls?.length && n.type !== 'outcome') lines.push('     (no functions recorded)');
     for (const e of flow.edges.filter((x) => x.loop && x.from === n.id)) lines.push(`     ↺ repeats from "${flow.nodes.find((x) => x.id === e.to)?.label || e.to}"${e.label ? ` (${e.label})` : ''}`);
     for (const e of n.emits || []) {
-      const next = map.flows.filter((f) => f.trigger?.channel === e.channel);
+      const next = map.flows.filter((f) => channelOf(f) === normalizeChannel(e.channel));
       lines.push(`     ↳ ${e.channel} → ${next.length ? next.map((f) => f.title).join(', ') : 'no flow starts from it'}`);
-      handoffs.push(...next.map((f) => f.id));
+      handoffs.push(...next.map((f) => ({ id: f.id, http: normalizeChannel(e.channel).startsWith('http:') })));
     }
   }
   let out = lines.join('\n'.concat(indent));
-  if (follow) for (const id of handoffs) if (!seen.has(id)) out += `\n\n${indent}── continues asynchronously ──\n` + printTrace(map, id, undefined, true, seen, indent);
+  if (follow) for (const h of handoffs) if (!seen.has(h.id)) out += `\n\n${indent}── ${h.http ? 'continues in the API (the screen waits for its answer)' : 'continues asynchronously'} ──\n` + printTrace(map, h.id, undefined, true, seen, indent);
   return out;
 }
 
 // ---------------------------------------------------------------- sync
 
 // Markers that usually mean a new or changed entrypoint (see reference/entrypoints.md).
-const ENTRY_MARKERS = /@(RestController|Controller|(Get|Post|Put|Patch|Delete|Request)Mapping|KafkaListener|RabbitListener|SqsListener|Scheduled|EventListener|TransactionalEventListener|Get|Post|Put|Patch|Delete|Resolver|Mutation|MessagePattern|EventPattern|Cron|Processor|OnEvent|CommandHandler|EventsHandler|Saga|WorkflowMethod|shared_task|task)\b|\b(app|router|fastify|server)\.(get|post|put|patch|delete|route)\(|urlpatterns|^\s*(resources?|get|post|put|patch|delete)\s+['":]|new Worker\(|cron\.schedule|\.subscribe\(|\.consume\(|['"]use server['"]/;
+const ENTRY_MARKERS = /<Route\b|createBrowserRouter|createRouter\(|RouterModule\.for(Root|Child)|Stack\.Screen|useMutation\(|@(RestController|Controller|(Get|Post|Put|Patch|Delete|Request)Mapping|KafkaListener|RabbitListener|SqsListener|Scheduled|EventListener|TransactionalEventListener|Get|Post|Put|Patch|Delete|Resolver|Mutation|MessagePattern|EventPattern|Cron|Processor|OnEvent|CommandHandler|EventsHandler|Saga|WorkflowMethod|shared_task|task)\b|\b(app|router|fastify|server)\.(get|post|put|patch|delete|route)\(|urlpatterns|^\s*(resources?|get|post|put|patch|delete)\s+['":]|new Worker\(|cron\.schedule|\.subscribe\(|\.consume\(|['"]use server['"]/;
 
 function git(args, cwd) {
   return execFileSync('git', args, { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'] });

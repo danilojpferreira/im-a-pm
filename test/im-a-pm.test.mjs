@@ -8,6 +8,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import {
   validate, diff, render, sync, parseUnifiedDiff, shiftLine, touches, pathNodes, printTrace, serve,
+  normalizeHttp, channelOf,
 } from '../skills/im-a-pm/scripts/im-a-pm.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
@@ -66,6 +67,34 @@ test('the shop example is valid and its diff shows the free-shipping change', ()
   assert.deepEqual(d.added, ['invoice-nightly']);
   assert.deepEqual(d.changed['place-order'].nodes.added.sort(), ['free-shipping', 'no-fee']);
   assert.ok(d.changed['place-order'].nodes.changed.some((c) => c.id === 'add-fee' && c.fields.rule));
+  assert.deepEqual(d.changed['open-checkout'].nodes.added.sort(), ['free-shipping', 'shown-fee']);
+});
+
+test('frontends: http routes are normalized and a screen links to the API flow it calls', () => {
+  assert.equal(normalizeHttp('patch /videos/{id}/publish?x=1'), 'http:PATCH /videos/:param/publish');
+  assert.equal(normalizeHttp('GET /orders/:orderId/'), 'http:GET /orders/:param');
+  assert.equal(normalizeHttp('GET orders/[id]'), 'http:GET /orders/:param');
+  assert.equal(normalizeHttp('not a route'), null);
+  assert.equal(channelOf({ trigger: { kind: 'http', signature: 'POST /orders' } }), 'http:POST /orders');
+  assert.equal(channelOf({ trigger: { kind: 'ui', signature: 'Pay button' } }), null);
+
+  const shop = JSON.parse(fs.readFileSync(path.join(ROOT, 'examples/shop/flows.json'), 'utf8'));
+  assert.deepEqual([...new Set(shop.flows.map((f) => f.surface))].sort(), ['api', 'web']);
+  const out = printTrace(shop, 'pay-for-order', undefined, true);
+  assert.match(out, /http:POST \/orders → Place an order/);
+  assert.match(out, /continues in the API/);
+  assert.match(out, /Customer places an order/);
+
+  // A screen calling a route with another parameter spelling still links; an unknown route warns.
+  const pay = shop.flows.find((f) => f.id === 'pay-for-order');
+  shop.flows.find((f) => f.id === 'place-order').trigger.signature = 'POST /carts/{cartId}/orders';
+  pay.nodes.find((n) => n.id === 'send-order').emits = [{ channel: 'http:POST /carts/:id/orders/' }];
+  assert.deepEqual(validate(shop).errors, []);
+  assert.ok(!validate(shop).warnings.some((w) => /carts/.test(w)), validate(shop).warnings.join('\n'));
+  pay.nodes.find((n) => n.id === 'send-order').emits = [{ channel: 'http:POST /refunds' }];
+  assert.ok(validate(shop).warnings.some((w) => /http:POST \/refunds/.test(w)));
+  shop.flows[0].surface = '';
+  assert.ok(validate(shop).errors.some((e) => /surface/.test(e)));
 });
 
 test('loops: only declared loop edges may close a cycle, and they must point back', () => {
