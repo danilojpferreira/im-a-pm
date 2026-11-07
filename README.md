@@ -62,7 +62,7 @@ everything below. Every build, sync, change or diff opens the viewer in your bro
 **Star** and **Report**, top right, open this project on GitHub to star it or open an issue.
 
 Click any step and its arrows, in and out, are highlighted while the rest fade. Click empty space
-to clear the selection.Where a flow forks or branches merge back together, each arrow has its
+to clear the selection. Where a flow forks or branches merge back together, each arrow has its
 own point on the box: the straight-through branch uses the top or bottom, and the others use the
 sides. Arrows run only through the gaps between steps, never across one.
 
