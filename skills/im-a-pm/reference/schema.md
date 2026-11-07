@@ -88,7 +88,7 @@
 
 | type | Meaning | Required fields |
 |---|---|---|
-| `start` | The trigger, phrased as what the actor does | `label` (exactly one per flow, id `start`) |
+| `start` | The trigger, phrased as what the actor does | `label` (exactly one per flow; give it the id `start`, so ids stay the same across rebuilds) |
 | `decision` | A business question with 2+ answers | `label` (a question), `rule`, outgoing edges with `label` |
 | `action` | Something the system does that matters to the business (calculate, count, notify, assign) | `label` |
 | `data` | Information saved or read | `label`, `data.op` (`read` / `write` / `delete`), `data.entity` |
@@ -220,16 +220,42 @@ warns while any remain, and the viewer marks them "re-check".
 
 ## Invariants (checked by `im-a-pm.mjs validate`)
 
+**Errors.** The map cannot be used until they are fixed (`render` refuses it):
+- `version` is 1, `app.name` is set, and `flows` is not empty. Every flow has `title`,
+  `trigger`, `nodes`, `edges` and `happyPath`.
 - Ids are unique: flow ids across the file, node ids within a flow. Ids are kebab-case.
+- Every node has a known `type` and a `label`. Decisions have a `rule`, outcomes a `result`, and
+  data steps a `data.op`.
 - Exactly one `start` node per flow. Every edge points to existing nodes.
-- Every node is reachable from `start`. Every non-outcome node has at least one outgoing edge.
+- Every node is reachable from the start node. Every non-outcome node has at least one outgoing
+  edge.
 - `outcome` nodes have no outgoing edges. The graph has no cycles except through edges marked
   `"loop": true`, which must point back to an earlier step.
+- `calls` entries have `fn`, `file` and `line`, with `endLine >= line`, `depth >= 0` and a known
+  `kind`. Channels in `emits` and `trigger.channel` have one of the shapes listed in "Hand-offs".
 - `surface`, when present, is a non-empty name.
 - `fanout.mode` is `parallel`, `each` or `batch`, with an `over`. `join.mode` is `all`, `any` or
-  `first`.
+  `first`. `implicit` is `true` or `false`.
 - Decisions have 2+ outgoing edges, each with a `label`.
-- `happyPath` names an outcome node. `outcomes` names every other outcome.
+- `happyPath` names an outcome node.
+
+**Warnings.** The map works, but a detail is missing or unknown. Fix them all before stamping:
+- A node other than `start` has no `anchors` or no `confidence`, or a node other than an outcome
+  has no `calls`.
+- A data step has no `data.entity`, or an external step has no `system`.
+- `trigger.kind`, or the `kind` of a finding, is not one of the values listed above. A finding
+  names a node the flow does not have.
+- An outcome other than the happy path has no name in `outcomes`.
+- A step emits a channel that no flow starts from.
+- A step or flow is still `stale`.
+
+## Changing this format
+
+Maps are committed in the repositories that use them, so a change to this format must keep
+every existing version 1 map usable:
+- A new check is a **warning** while `version` stays 1.
+- A check becomes an **error** only with a new `version`, and this file then says how to move a
+  map from the old version to the new one.
 
 ## Ids and diffs
 

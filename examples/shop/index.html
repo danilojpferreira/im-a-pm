@@ -435,6 +435,8 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     return null;
   }
   const flowOf = (id) => headFlows.get(id) || baseFlows.get(id);
+  /** Returns the id of the flow's start node, whatever that node is called. */
+  const startOf = (flow) => flow?.nodes.find((n) => n.type === 'start')?.id;
   const edgeKey = (e) => `${e.from}→${e.to}${e.label ? ` [${e.label}]` : ''}`;
 
   // Union of head and base when showing changes.
@@ -457,15 +459,17 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     return { flow: hf, nodes, edges };
   }
 
+  /**
+   * Returns the ids of the steps on any route from the start node to `outcomeId`. With
+   * `withLoops`, a loop's steps are included when the outcome is reached by leaving that loop.
+   */
   function onPath(g, outcomeId, withLoops = true) {
     const out = new Map(g.nodes.map((n) => [n.id, []]));
     const inn = new Map(g.nodes.map((n) => [n.id, []]));
     for (const e of g.edges) { if (e._d === 'removed' || e.loop) continue; out.get(e.from)?.push(e.to); inn.get(e.to)?.push(e.from); }
     const walk = (startId, adj) => { const seen = new Set([startId]); const st = [startId]; while (st.length) for (const x of adj.get(st.pop()) || []) if (!seen.has(x)) { seen.add(x); st.push(x); } return seen; };
-    const fwd = walk('start', out), back = walk(outcomeId, inn);
+    const fwd = walk(startOf(g), out), back = walk(outcomeId, inn);
     const on = new Set([...fwd].filter((x) => back.has(x)));
-    // include the body of loops that start on this path
-    // Include a loop's steps only when this outcome is reached by leaving the loop.
     if (withLoops) for (const e of g.edges) if (e.loop && e._d !== 'removed' && on.has(e.to)) {
       const body = walk(e.to, out), toSrc = walk(e.from, inn), inBody = [...body].filter((x) => toSrc.has(x));
       if ((inn.get(outcomeId) || []).some((p) => inBody.includes(p))) inBody.forEach((x) => on.add(x));
@@ -1000,6 +1004,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
       <div class="toast" id="toast" role="status"></div>
     </section>`;
   }
+  /** Fills the inspector with the selected step, or with the flow when no step is selected. */
   function drawInspector() {
     const box = $('inspector');
     const g = graph(state.flow);
@@ -1037,7 +1042,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
         ${rows.length ? `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>` : ''}
         ${n.stale ? `<div class="stalebox"><b>Needs re-check</b>The code behind this step changed: ${esc((n.stale.reasons || []).join('; '))}.</div>` : ''}
         ${findings.map((x) => `<div class="note" style="cursor:default"><span class="k">${esc(x.kind)}</span><span>${esc(x.text)}</span></div>`).join('')}
-        ${(n.emits || []).length ? `<div class="links"><span class="muted">Continues in</span>${n.emits.map((e) => { const nx = consumers.get(normalizeChannel(e.channel)) || []; return nx.length ? nx.map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.id)}" data-gonode="start">${esc(x.title)} ↳</button>`).join('') : `<span class="mono">${esc(e.channel)}</span>`; }).join('')}</div>` : ''}
+        ${(n.emits || []).length ? `<div class="links"><span class="muted">Continues in</span>${n.emits.map((e) => { const nx = consumers.get(normalizeChannel(e.channel)) || []; return nx.length ? nx.map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.id)}" data-gonode="${esc(startOf(x))}">${esc(x.title)} ↳</button>`).join('') : `<span class="mono">${esc(e.channel)}</span>`; }).join('')}</div>` : ''}
         ${n._d === 'removed' ? '' : actionsHtml(subject)}
         ${n.calls?.length ? `<details class="collapse"><summary>For engineers: functions that run here, in order (${n.calls.length})</summary><ol class="calls">${callItems(n.calls)}</ol></details>` : ''}
         ${n.anchors?.length ? `<details class="collapse"><summary>For engineers: where the rule lives</summary><div class="anchors">${n.anchors.map((a) => `<code>${esc(a.file)}:${esc(a.line)}</code>`).join('')}</div></details>` : ''}`;
@@ -1073,11 +1078,15 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
   }
 
   // ------------------------------------------------------------ routing
+  /**
+   * Opens flow `id`, resetting the view, and highlights the given steps. A single highlighted step
+   * other than the start node is also selected.
+   */
   function select(id, fromHash, highlight) {
     if (!flowOf(id)) id = allFlowIds[0];
     state.flow = id; state.node = null; state.path = 'all'; state.composer = null; state.startsOpen = false; state.pathsOpen = false; state.summaryOpen = false;
     state.hl = new Set(highlight || []);
-    if (highlight?.length === 1 && highlight[0] !== 'start') state.node = highlight[0];
+    if (highlight?.length === 1 && highlight[0] !== startOf(flowOf(id))) state.node = highlight[0];
     if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', `#${id}`);
     drawIndex(); drawFlowHead(); drawCanvas(true); if (state.node) reveal(state.node); drawInspector();
   }
