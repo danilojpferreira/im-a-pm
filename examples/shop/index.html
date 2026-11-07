@@ -179,6 +179,9 @@ details.collapse > summary { cursor: pointer; color: var(--muted); font-weight: 
 .links { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .linkbtn { display: inline-flex; align-items: center; gap: 4px; border: 1px dashed var(--external-line); color: var(--ink); background: var(--external-bg); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
 .linkbtn:hover { border-style: solid; }
+.linkbtn .count { font-weight: 500; opacity: .75; }
+.linkmore { border: 1px dashed var(--line); background: none; color: var(--muted); padding: 3px 10px; border-radius: 999px; cursor: pointer; font-size: var(--step--1); font-weight: 600; }
+.linkmore:hover { color: var(--ink); border-color: var(--ink); }
 .askbox { margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
 .askform { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .askform input { flex: 1 1 280px; min-width: 0; padding: 9px 12px; border: 1.5px solid var(--accent); border-radius: 8px; background: var(--surface); }
@@ -292,11 +295,13 @@ g.e.faded, g.elabel.faded { opacity: .3; }
 .calls { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; counter-reset: call; }
 .calls li { display: grid; grid-template-columns: 1.8em minmax(0, 1fr); gap: 0 4px; font-size: 0.75rem; counter-increment: call; }
 .calls li::before { content: counter(call) "."; color: var(--muted); font-variant-numeric: tabular-nums; text-align: right; }
-.calls .fn { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.calls .fn { font-family: var(--font-mono); overflow-wrap: break-word; }
 .calls .where { grid-column: 2; font-family: var(--font-mono); font-size: 0.68rem; color: var(--muted); overflow-wrap: anywhere; }
 .calls .kind { font-size: 0.62rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--external-line); margin-left: 4px; }
-.calls .grp { grid-column: 1 / -1; font-size: 0.72rem; font-weight: 600; color: var(--ink); margin-top: 6px; counter-increment: none; }
-.calls .grp::before { content: none; }
+.calls li.grp { display: block; font-size: 0.75rem; font-weight: 600; color: var(--ink); margin-top: 8px; padding-top: 6px; border-top: 1px solid var(--line); counter-increment: none; }
+.calls li.grp:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.calls li.grp::before { content: none; }
+.calls .grp-k { display: block; font-size: 0.62rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
 .missing { max-width: 60ch; margin: 10vh auto; display: flex; flex-direction: column; gap: 10px; }
 
 @media (max-width: 1100px) {
@@ -428,7 +433,11 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     const fwd = walk('start', out), back = walk(outcomeId, inn);
     const on = new Set([...fwd].filter((x) => back.has(x)));
     // include the body of loops that start on this path
-    if (withLoops) for (const e of g.edges) if (e.loop && e._d !== 'removed' && on.has(e.to)) { const body = walk(e.to, out), toSrc = walk(e.from, inn); for (const x of body) if (toSrc.has(x)) on.add(x); }
+    // Include a loop's steps only when this outcome is reached by leaving the loop.
+    if (withLoops) for (const e of g.edges) if (e.loop && e._d !== 'removed' && on.has(e.to)) {
+      const body = walk(e.to, out), toSrc = walk(e.from, inn), inBody = [...body].filter((x) => toSrc.has(x));
+      if ((inn.get(outcomeId) || []).some((p) => inBody.includes(p))) inBody.forEach((x) => on.add(x));
+    }
     return on;
   }
 
@@ -481,25 +490,33 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     const layers = [];
     for (const i of ids) (layers[layer.get(i)] ||= []).push(i);
     const col = new Map();
-    layers.forEach((L) => {
-      if (!L) return;
+    for (let k = 0; k < layers.length; k++) {
+      let L = layers[k];
+      if (!L) continue;
       const bary = (i) => { const p = parents.get(i).filter((x) => col.has(x)); return p.length ? p.reduce((s, x) => s + col.get(x), 0) / p.length : 0; };
       L.sort((a, b) => (side.has(a) - side.has(b)) || (happy.has(b) - happy.has(a)) || (bary(a) - bary(b)) || (ids.indexOf(a) - ids.indexOf(b)));
-      // Happy-path node in column 0. A decision's exits stack in the column right of it.
-      // The other steps take the next free columns.
+      // Happy-path step in column 0, the other steps in the next free columns.
       const used = new Set();
       const place = (i) => {
-        if (side.has(i)) { const c = col.get(parents.get(i)[0]) + 1; col.set(i, c); used.add(c); return; }
         let want = happy.has(i) ? 0 : Math.max(1, Math.round(bary(i)));
         while (used.has(want)) want++;
         used.add(want); col.set(i, want);
       };
-      const sideReady = (i) => side.has(i) && col.has(parents.get(i)[0]);
       L.filter((i) => !side.has(i) && happy.has(i)).forEach(place);
-      L.filter(sideReady).forEach(place);
       L.filter((i) => !side.has(i) && !happy.has(i)).forEach(place);
-      L.filter((i) => side.has(i) && !col.has(i)).forEach(place);
-    });
+      // A decision's exits stack in the column right of it, but only when nothing else sits to
+      // its right in this row. Otherwise they move down a row, where they get a free column.
+      const mainCols = L.filter((i) => !side.has(i)).map((i) => col.get(i));
+      const groups = new Map();
+      for (const i of L.filter((x) => side.has(x))) { const p = parents.get(i)[0]; (groups.get(p) || groups.set(p, []).get(p)).push(i); }
+      const moved = new Set();
+      for (const [p, list] of groups) {
+        const pc = col.get(p);
+        if (pc !== undefined && !mainCols.some((c) => c > pc)) list.forEach((i) => col.set(i, pc + 1));
+        else list.forEach((i) => { side.delete(i); layer.set(i, k + 1); (layers[k + 1] ||= []).push(i); moved.add(i); });
+      }
+      if (moved.size) layers[k] = L.filter((i) => !moved.has(i));
+    }
 
     const heights = new Map();
     for (const n of g.nodes) { measurer.innerHTML = nodeHtml(n, g.flow); heights.set(n.id, Math.max(n.type === 'start' ? 44 : 56, measurer.firstChild.offsetHeight)); }
@@ -687,17 +704,19 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
         } else {
           const ex = exitX.get(e), en = entryX.get(e);
           // Each arrow of a fork runs on its own horizontal track inside the gap.
-          const gy1 = a.row + a.rowH + GAP_Y / 2 + (exitRank.get(e) || 0) * 8, gy2 = b.row - GAP_Y / 2;
+          const gy1 = a.row + a.rowH + GAP_Y / 2 + (exitRank.get(e) || 0) * 10, gy2 = b.row - GAP_Y / 2;
+          // Labels sit where the arrow leaves its step, so crossing branches keep their labels apart.
+          const near = (dirX) => ex + dirX * (lw / 2 + 10);
           const clearColumn = a.col === b.col && between(a, b).every((r) => free(r, a.col));
           const adjacent = Math.abs(a.row + a.rowH + GAP_Y - b.row) < 2;
           if (a.col === b.col && Math.abs(ex - en) < 1 && clearColumn) { d = `M${ex},${y1} V${y2}`; lx = ex; ly = y1 + GAP_Y / 2 - 2; }
-          else if (adjacent || clearColumn) { d = `M${ex},${y1} V${gy1} H${en} V${y2}`; lx = (ex + en) / 2; ly = gy1; }
+          else if (adjacent || clearColumn) { d = `M${ex},${y1} V${gy1} H${en} V${y2}`; lx = Math.abs(en - ex) > lw + 20 ? near(en > ex ? 1 : -1) : (ex + en) / 2; ly = gy1; }
           else {
             // Skipping rows: along the column gap, so the arrow never crosses a step.
             // In the first column the empty left side is the clearest channel.
             const side = dir === 0 ? (a.col === 0 ? -1 : 1) : dir;
             const chX = side > 0 ? a.x + a.w + L.gapX / 2 : a.col === 0 ? a.x - 16 : a.x - L.gapX / 2;
-            d = `M${ex},${y1} V${gy1} H${chX} V${gy2} H${en} V${y2}`; lx = (ex + chX) / 2; ly = gy1;
+            d = `M${ex},${y1} V${gy1} H${chX} V${gy2} H${en} V${y2}`; lx = Math.abs(chX - ex) > lw + 20 ? near(chX > ex ? 1 : -1) : (ex + chX) / 2; ly = gy1;
           }
         }
       }
@@ -796,6 +815,30 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     return out;
   }
 
+  // "Starts when": the steps of other flows that hand off to this one. Many flows can feed one
+  // (a saga that reacts to every report update), so the list starts grouped by flow and short.
+  const STARTS_LIMIT = 3;
+  function startsWhenHtml(f) {
+    if (!f.trigger?.channel) return '';
+    const em = emitters.get(f.trigger.channel) || [];
+    if (!em.length) return `<div class="links"><span class="muted">Starts when</span><span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span></div>`;
+    const chip = (flowId, nodeIds, text, tip = '') => `<button type="button" class="linkbtn" data-goflow="${esc(flowId)}" data-gonode="${esc(nodeIds.join(','))}"${tip ? ` title="${esc(tip)}"` : ''}>↰ ${text}</button>`;
+    if (em.length <= STARTS_LIMIT || state.startsOpen) {
+      const all = em.map((x) => chip(x.flow.id, [x.node.id], `${esc(x.flow.title)}: ${esc(x.node.label)}`)).join('');
+      const less = em.length > STARTS_LIMIT ? '<button type="button" class="linkmore" data-starts="less">Show less</button>' : '';
+      return `<div class="links"><span class="muted">Starts when</span>${all}${less}</div>`;
+    }
+    const groups = new Map();
+    for (const x of em) (groups.get(x.flow.id) || groups.set(x.flow.id, { flow: x.flow, nodes: [] }).get(x.flow.id)).nodes.push(x.node);
+    const list = [...groups.values()];
+    // Collapsed: one short chip per flow (the steps are in the tooltip and in "show all").
+    const shown = list.slice(0, STARTS_LIMIT).map((gr) => chip(gr.flow.id, gr.nodes.map((n) => n.id),
+      `${esc(gr.flow.title)}${gr.nodes.length > 1 ? ` <span class="count">· ${gr.nodes.length} steps</span>` : ''}`,
+      gr.nodes.map((n) => n.label).join('\n'))).join('');
+    const hiddenFlows = list.length - Math.min(list.length, STARTS_LIMIT);
+    const more = `<button type="button" class="linkmore" data-starts="more" title="Show every step that starts this flow">${hiddenFlows ? `+${hiddenFlows} more flow${hiddenFlows > 1 ? 's' : ''} · ` : ''}show all ${em.length} steps</button>`;
+    return `<div class="links"><span class="muted">Starts when</span>${shown}${more}</div>`;
+  }
   function drawFlowHead() {
     const f = flowOf(state.flow);
     const outcomes = f.nodes.filter((n) => n.type === 'outcome');
@@ -803,7 +846,14 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     const others = outcomes.filter((o) => o.id !== f.happyPath);
     const chips = [`<button type="button" class="pathbtn" data-p="all" aria-pressed="${state.path === 'all'}">All paths</button>`];
     if (happy) chips.push(`<button type="button" class="pathbtn success" data-p="${esc(happy.id)}" aria-pressed="${state.path === happy.id}"><span class="dot"></span>Happy path: ${esc(happy.label)}</button>`);
-    for (const o of others) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}${o.implicit ? ' implicit' : ''}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}" ${o.implicit ? 'title="Not handled in code"' : ''}><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
+    // Many outcomes make a long row: show the first few (and the selected one) until expanded.
+    const PATHS_LIMIT = 3;
+    const collapsed = others.length > PATHS_LIMIT + 1 && !state.pathsOpen;
+    const visible = collapsed ? others.filter((o, k) => k < PATHS_LIMIT || o.id === state.path) : others;
+    for (const o of visible) chips.push(`<button type="button" class="pathbtn ${esc(o.result)}${o.implicit ? ' implicit' : ''}" data-p="${esc(o.id)}" aria-pressed="${state.path === o.id}" ${o.implicit ? 'title="Not handled in code"' : ''}><span class="dot"></span>${esc(f.outcomes?.[o.id] || o.label)}</button>`);
+    if (others.length > PATHS_LIMIT + 1) chips.push(collapsed
+      ? `<button type="button" class="linkmore" data-paths="more" title="Show every outcome of this flow">+${others.length - visible.length} more path${others.length - visible.length > 1 ? 's' : ''}</button>`
+      : '<button type="button" class="linkmore" data-paths="less">Show fewer</button>');
     const changes = state.showChanges ? changeSentences(f.id) : [];
     const findings = f.findings || [];
     const notes = [
@@ -812,17 +862,20 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     ];
     $('flowhead').innerHTML = `<div class="meta"><span class="eyebrow">${esc(f.domain || '')}</span>${f.actor ? `<span>Started by <b>${esc(f.actor)}</b></span>` : ''}<span class="trigger">${esc(f.trigger?.kind || '')} · ${esc(f.trigger?.signature || '')}</span></div>
       <h2>${esc(f.title)}</h2>${f.summary ? `<p>${esc(f.summary)}</p>` : ''}
-      ${f.trigger?.channel ? `<div class="links"><span class="muted">Starts when</span>${(emitters.get(f.trigger.channel) || []).map((x) => `<button type="button" class="linkbtn" data-goflow="${esc(x.flow.id)}" data-gonode="${esc(x.node.id)}">↰ ${esc(x.flow.title)}: ${esc(x.node.label)}</button>`).join('') || `<span class="mono">${esc(f.trigger.channel)}</span> <span class="muted">arrives from outside this app</span>`}</div>` : ''}
+      ${startsWhenHtml(f)}
       <div class="paths" role="group" aria-label="Paths">${chips.join('')}</div>
       ${notes.length ? `<details class="collapse" ${changes.length || findings.length <= 2 ? 'open' : ''}><summary>${changes.length ? `${changes.length} change${changes.length > 1 ? 's' : ''}` : ''}${changes.length && findings.length ? ' · ' : ''}${findings.length ? `${findings.length} finding${findings.length > 1 ? 's' : ''}` : ''}</summary><div class="notes" style="margin-top:6px">${notes.join('')}</div></details>` : ''}`;
-    $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, [b.dataset.gonode])));
+    $('flowhead').querySelectorAll('[data-goflow]').forEach((b) => b.addEventListener('click', () => select(b.dataset.goflow, false, b.dataset.gonode.split(','))));
+    $('flowhead').querySelectorAll('[data-starts]').forEach((b) => b.addEventListener('click', () => { state.startsOpen = b.dataset.starts === 'more'; drawFlowHead(); }));
     $('flowhead').querySelectorAll('.pathbtn').forEach((b) => b.addEventListener('click', () => { state.path = b.dataset.p; drawFlowHead(); drawCanvas(false); }));
+    $('flowhead').querySelectorAll('[data-paths]').forEach((b) => b.addEventListener('click', () => { state.pathsOpen = b.dataset.paths === 'more'; drawFlowHead(); }));
     $('flowhead').querySelectorAll('.note[data-f]').forEach((b) => b.addEventListener('click', () => { const x = findings[+b.dataset.f]; if (x.nodes?.[0]) { state.node = x.nodes[0]; drawCanvas(false); reveal(state.node); drawInspector(); } }));
   }
 
   // ------------------------------------------------------------ functions
+  const breakable = (t) => esc(t).replace(/\./g, '.<wbr>').replace(/\(/g, '<wbr>(');
   function callItems(calls) {
-    return (calls || []).map((c) => `<li><span class="fn" style="padding-left:${(c.depth || 0) * 10}px">${esc(c.fn)}${c.kind && c.kind !== 'call' ? `<span class="kind">${esc(c.kind)}</span>` : ''}</span>
+    return (calls || []).map((c) => `<li><span class="fn" style="padding-left:${(c.depth || 0) * 10}px">${breakable(c.fn)}${c.kind && c.kind !== 'call' ? `<span class="kind">${esc(c.kind)}</span>` : ''}</span>
       <span class="where" style="padding-left:${(c.depth || 0) * 10}px">${esc(c.file.split('/').pop())}:${c.line}${c.endLine ? '-' + c.endLine : ''}${c.note ? ` · ${esc(c.note)}` : ''}</span></li>`).join('');
   }
   function pathOrder(g, outcomeId) {
@@ -842,11 +895,11 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
   // The three things a PM does with a step. "Request a change" is the main action.
   const ACTIONS = {
     change: { icon: '✎', title: 'Request a change', blurb: 'Describe the new rule. Your agent changes the code on a branch, with tests, for engineers to review.', label: 'What should the rule be instead?',
-      ideas: ['Make this optional', 'Change the limit to …', 'Skip this for …', 'Remove this check'], send: 'Send change request' },
+      ideas: ['Make this optional', 'Change the limit to …', 'Skip this for …', 'Remove this check'] },
     ask: { icon: '?', title: 'Ask a question', blurb: 'Get an answer in plain words, checked against the code.', label: 'Your question',
-      ideas: ['Why does this rule exist?', 'What happens if …?', 'Which customers does this affect?'], send: 'Ask' },
+      ideas: ['Why does this rule exist?', 'What happens if …?', 'Which customers does this affect?'] },
     flag: { icon: '⚑', title: 'Flag as wrong', blurb: 'This step does not match how the product really behaves. Your agent re-checks it against the code.', label: 'What do you see instead?',
-      ideas: ['This does not happen in production', 'The real value is …', 'There is a step missing here'], send: 'Send report' },
+      ideas: ['This does not happen in production', 'The real value is …', 'There is a step missing here'] },
   };
   function actionsHtml(subject) {
     if (state.composer) return composerHtml(subject);
@@ -857,17 +910,16 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     const a = ACTIONS[state.composer];
     const viaAI = state.composer === 'ask' && aiAsk;
     const next = viaAI ? 'Claude answers here, using this map.'
-      : served ? 'Saved to <span class="mono">.im-a-pm/requests/</span>. Your agent picks it up with <span class="mono">/im-a-pm inbox</span>.'
-      : 'Copies a command. Paste it into your coding agent (Claude Code, Codex, Copilot, Cursor…) in the repository.';
+      : 'Copies the command above. Paste it in your agent (Claude Code, Codex, Copilot, Cursor…), in the repository.';
     return `<section class="act open ${state.composer}" aria-label="${esc(a.title)}">
       <div class="act-head"><span class="ic" aria-hidden="true">${a.icon}</span><div><b>${a.title}</b><small>${esc(subject.name)}</small></div><button type="button" class="linkish" id="composer-cancel">Cancel</button></div>
       ${state.composer === 'change' && subject.rule ? `<div class="current"><span class="eyebrow">Current rule</span>${esc(subject.rule)}</div>` : ''}
       <label for="composer-text">${a.label}</label>
       <textarea id="composer-text" placeholder="${esc(a.ideas[0])}"></textarea>
       <div class="ideas">${a.ideas.map((t) => `<button type="button" class="idea" data-idea="${esc(t)}">${esc(t)}</button>`).join('')}</div>
-      ${!viaAI && !served ? '<div class="cmd" id="composer-cmd"></div>' : ''}
+      ${!viaAI ? '<div class="cmd" id="composer-cmd"></div>' : ''}
       <div class="next"><b>What happens next</b>${next}</div>
-      <button type="button" class="btn primary big" id="composer-send">${viaAI ? 'Ask Claude' : served ? a.send : 'Copy command'}</button>
+      <button type="button" class="btn primary big" id="composer-send">${viaAI ? 'Ask Claude' : '⧉ Copy command'}</button>
       <div class="toast" id="toast" role="status"></div>
     </section>`;
   }
@@ -882,7 +934,7 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
         <p class="muted small">Path buttons above the chart follow one outcome at a time. Scroll or drag to move around; hold Ctrl or ⌘ while scrolling to zoom.</p>
         ${(() => { const target = state.path === 'all' ? g.flow.happyPath : state.path; const nodes = pathOrder(g, target); const total = nodes.reduce((s, n) => s + (n.calls || []).length, 0); if (!total) return '';
           const name = target === g.flow.happyPath ? 'the happy path' : `“${esc(g.flow.outcomes?.[target] || target)}”`;
-          return `<details class="collapse"><summary>For engineers: functions on ${name}, in order (${total})</summary><ol class="calls">${nodes.map((n) => (n.calls || []).length ? `<li class="grp">${esc(n.label)}</li>${callItems(n.calls)}` : '').join('')}</ol></details>`; })()}</div>`;
+          return `<details class="collapse"><summary>For engineers: functions on ${name}, in order (${total})</summary><ol class="calls">${nodes.map((n) => (n.calls || []).length ? `<li class="grp"><span class="grp-k">${TYPE_NAMES[n.type]}</span>${esc(n.label)}</li>${callItems(n.calls)}` : '').join('')}</ol></details>`; })()}</div>`;
     } else {
       const f = g.flow;
       const findings = (f.findings || []).filter((x) => (x.nodes || []).includes(n.id));
@@ -930,23 +982,23 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     const toast = $('toast');
     if (!text) { toast.textContent = 'Write something first.'; return; }
     if (kind === 'ask' && aiAsk) { aiAsk(`About ${subject.name} (in the flow "${flowOf(state.flow).title}"): ${text}`); return; }
-    if (served) {
-      try {
-        const r = await fetch('/api/requests', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind, flow: state.flow, node: nodeId || null, text }) });
-        const j = await r.json(); if (!j.ok) throw new Error(j.error);
-        toast.textContent = 'Sent. Run /im-a-pm inbox in your coding agent to process it.';
-      } catch (e) { toast.textContent = `Could not send: ${e.message}`; }
-      return;
-    }
+    // Every request becomes a command the person pastes into their agent.
     const cmd = command(kind, state.flow, nodeId, text);
-    try { await navigator.clipboard.writeText(cmd); toast.textContent = 'Copied. Paste it into your coding agent.'; }
-    catch { const el = $('composer-cmd'); const sel = getSelection(); const rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg); toast.textContent = 'Select the command above and copy it.'; }
+    const btn = $('composer-send');
+    try {
+      await navigator.clipboard.writeText(cmd);
+      toast.textContent = 'Copied. Paste it in your agent.';
+      if (btn) { btn.textContent = '✓ Copied'; setTimeout(() => { if (btn.isConnected) btn.textContent = '⧉ Copy command'; }, 2000); }
+    } catch {
+      const el = $('composer-cmd'); const sel = getSelection(); const rg = document.createRange(); rg.selectNodeContents(el); sel.removeAllRanges(); sel.addRange(rg);
+      toast.textContent = 'Your browser blocked copying. The command is selected: press Ctrl+C (⌘C on a Mac), then paste it in your agent.';
+    }
   }
 
   // ------------------------------------------------------------ routing
   function select(id, fromHash, highlight) {
     if (!flowOf(id)) id = allFlowIds[0];
-    state.flow = id; state.node = null; state.path = 'all'; state.composer = null;
+    state.flow = id; state.node = null; state.path = 'all'; state.composer = null; state.startsOpen = false; state.pathsOpen = false;
     state.hl = new Set(highlight || []);
     if (highlight?.length === 1 && highlight[0] !== 'start') state.node = highlight[0];
     if (!fromHash && location.hash.slice(1) !== id) history.replaceState(null, '', `#${id}`);

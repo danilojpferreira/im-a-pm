@@ -77,6 +77,8 @@ test('loops: only declared loop edges may close a cycle, and they must point bac
   assert.deepEqual(validate(m).errors, []);
   // The loop body runs on the path to the outcome it exits to.
   assert.deepEqual(pathNodes(f, 'sold-out').map((n) => n.id), ['start', 'in-stock', 'retry', 'sold-out']);
+  // A path that only passes the loop's start (the happy path here) does not include the retry.
+  assert.deepEqual(pathNodes(f, 'done').map((n) => n.id), ['start', 'in-stock', 'queue-invoice', 'done']);
   // Without the loop flag it is an undeclared cycle.
   delete f.edges.at(-1).loop;
   assert.ok(validate(m).errors.some((e) => e.includes('cycle')));
