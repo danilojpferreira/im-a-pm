@@ -1,6 +1,6 @@
 {
   "name": "im-a-pm",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Agent skill that maps a codebase as business flows for product managers.",
   "type": "module",
   "bin": { "im-a-pm": "plugins/im-a-pm/skills/im-a-pm/scripts/im-a-pm.mjs" },

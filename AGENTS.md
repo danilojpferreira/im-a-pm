@@ -68,6 +68,7 @@ the viewer's look changes. Sizes are in CSS pixels; the files are twice as large
 | `batch.png` | light | 1392×1153 | `invoice-nightly`, findings open, step `read-batch` selected |
 | `frontend.png` | light | 1280×900 | `pay-for-order`, step `send-order` selected |
 | `frontend-rule.png` | light | 320×853, inspector only | `open-checkout`, step `free-shipping` selected |
+| `filters.png` | light | 1280×900 | `place-order`, "Show changes" off, Filters open and scrolled to the top, "Customer" and "Risk" chosen |
 
 ## Versions
 

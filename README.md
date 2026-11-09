@@ -28,6 +28,7 @@ npx github:danilojpferreira/im-a-pm install   # once, for every agent you use
   - [Contents](#contents)
   - [Why](#why)
   - [A tour of the viewer](#a-tour-of-the-viewer)
+    - [Find a flow](#find-a-flow)
     - [What changed in this branch](#what-changed-in-this-branch)
     - [Ask, request a change, flag as wrong](#ask-request-a-change-flag-as-wrong)
     - [Paths the code doesn't handle](#paths-the-code-doesnt-handle)
@@ -69,6 +70,25 @@ Click any step and its arrows, in and out, are highlighted while the rest fade. 
 to clear the selection. Where a flow forks or branches merge back together, each arrow has its
 own point on the box: the straight-through branch uses the top or bottom, and the others use the
 sides. Arrows run only through the gaps between steps, never across one.
+
+### Find a flow
+
+![The Filters panel open on the shop: "Customer" and "Risk" are chosen, every option shows how many flows it would leave, and the list shows 2 of 5 flows](docs/filters.png)
+
+The search box finds a word in any flow's title, summary, trigger, steps or rules. **Filters**,
+next to it, narrows the list by:
+
+- **Where it lives**: the app (surface) and the business area.
+- **How it starts**: the kind of trigger (HTTP, event, job, screen…), the HTTP method, who starts
+  it, and whether it hands off to another flow or is started by one.
+- **What it touches**: the data it reads, writes or deletes, and the outside systems it calls.
+- **Needs attention**: its findings, paths the code doesn't handle, steps to re-check or with low
+  confidence, and, with **Show changes** on, whether it is new or changed.
+
+Several options in one filter show flows that have any of them. Options in different filters
+must all match. Each option says how many flows it would leave. A filter with more than 8 options
+adds its own search box and shows the most common ones first, and a filter with a single option
+in your map is not shown. The chosen options stay above the list: click one to remove it.
 
 ### What changed in this branch
 
@@ -364,7 +384,7 @@ Run it with `npx github:danilojpferreira/im-a-pm <command>`, or with
 - **Your code stays with you.** The script runs locally and the viewer is served on
   `127.0.0.1`. The only thing that reads your code is the agent you already use.
 
-**Status: version 0.6.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
+**Status: version 0.7.** Tested end to end on a Spring Boot REST service (`examples/video-api`).
 Loops, parallel work, batches and unhandled paths are covered by tests and the shop example, but
 haven't yet been mapped from a large real codebase with queues and sagas. The same goes for
 frontends and monorepos, so far covered only by the shop example. CI tests the CLI on Linux,
