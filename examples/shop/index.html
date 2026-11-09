@@ -83,7 +83,8 @@ body {
   font-family: var(--font-body); font-size: var(--step-0); line-height: 1.5;
   padding-left: max(16px, env(safe-area-inset-left, 0px));
   padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 14px 24px;
+  margin-block: 0; padding-block: 22px 32px;
+  display: flex; flex-direction: column;
 }
 h1, h2, h3 { font-family: var(--font-display); text-wrap: balance; margin: 0; line-height: 1.2; }
 button, input, textarea { font: inherit; color: inherit; }
@@ -120,13 +121,42 @@ button, input, textarea { font: inherit; color: inherit; }
 .switch input { width: 16px; height: 16px; accent-color: var(--accent); }
 
 /* workbench */
-.bench { display: grid; grid-template-columns: 260px minmax(0, 1fr) 320px; gap: 16px; margin-top: 16px; height: calc(100% - 110px); min-height: 560px; }
+.bench { display: grid; grid-template-columns: 260px minmax(0, 1fr) 320px; gap: 16px; margin-top: 16px; flex: 1 1 0; min-height: 320px; }
 .pane { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; min-width: 0; min-height: 0; display: flex; flex-direction: column; }
 
 /* index */
-.index { overflow: hidden; }
-.index .search { padding: 10px; border-bottom: 1px solid var(--line); }
-.index input[type=search] { width: 100%; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.index { position: relative; z-index: 3; }
+.index .search { padding: 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.index input[type=search] { width: 100%; min-width: 0; padding: 7px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); }
+.searchrow { display: flex; gap: 6px; }
+.fbtn { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; font-weight: 600; font-size: var(--step--1); }
+.fbtn:hover, .fbtn[aria-expanded="true"] { border-color: var(--accent); color: var(--accent); }
+.fbtn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.fcount { min-width: 18px; padding: 0 5px; border-radius: 999px; background: var(--accent); color: var(--surface); font-size: 0.7rem; text-align: center; font-variant-numeric: tabular-nums; }
+.factive { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; }
+.factive .n { font-size: 0.72rem; color: var(--muted); }
+.fpick { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; padding: 1px 6px 1px 8px; border: 0; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+.fpick .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.fpick:hover { text-decoration: line-through; }
+.filters { position: absolute; top: 0; left: calc(100% + 16px); width: 360px; max-height: min(100%, calc(100vh - 32px)); overflow-y: auto; overscroll-behavior: contain; padding: 14px 16px; display: flex; flex-direction: column; gap: 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 32px rgba(0, 0, 0, .16); }
+.filters:focus { outline: none; }
+.fhead { display: flex; justify-content: space-between; align-items: baseline; }
+.fgroup { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--line); }
+.fhead + .fgroup { padding-top: 0; border-top: 0; }
+.facet, .fsub { display: flex; flex-direction: column; gap: 6px; }
+.fname { font-weight: 600; font-size: var(--step--1); }
+.fsub { padding-left: 10px; border-left: 2px solid var(--line); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; padding: 2px 9px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); font-size: 0.75rem; cursor: pointer; }
+.chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.chip .n { color: var(--muted); font-variant-numeric: tabular-nums; }
+.chip:hover { border-color: var(--accent); }
+.chip[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+.chip[aria-pressed="true"] .n { color: var(--accent); }
+.chip.zero { opacity: .5; }
+.facet input[type=search] { padding: 5px 9px; font-size: var(--step--1); }
+.fhint { font-size: var(--step--1); color: var(--muted); }
+.facet .linkish { align-self: flex-start; padding: 0; }
 .flowlist { overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 2px; }
 .domain { padding: 10px 8px 4px; }
 .surface { margin: 12px 4px 0; padding: 6px 4px 4px; border-top: 1px solid var(--line); font-family: var(--font-display); font-weight: 700; font-size: var(--step-0); }
@@ -148,7 +178,7 @@ button, input, textarea { font: inherit; color: inherit; }
 
 /* flow pane */
 .flow { overflow: hidden; }
-.flowhead { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; }
+.flowhead { padding: 14px 16px 10px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 8px; flex: none; max-height: calc(100% - 200px); overflow-y: auto; }
 .flowhead h2 { font-size: var(--step-2); }
 .meta { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; color: var(--muted); }
 .trigger { font-family: var(--font-mono); font-size: var(--step--1); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
@@ -168,7 +198,7 @@ button, input, textarea { font: inherit; color: inherit; }
 .note.change .k { color: var(--chg); }
 details.collapse > summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: var(--step--1); list-style-position: inside; }
 
-.canvaswrap { position: relative; flex: 1; min-height: 360px; overflow: hidden; background:
+.canvaswrap { position: relative; flex: 1; min-height: 200px; overflow: hidden; background:
   radial-gradient(circle, var(--line) 1px, transparent 1.2px) 0 0 / 18px 18px, var(--surface); touch-action: none; }
 .canvaswrap svg { width: 100%; height: 100%; display: block; cursor: grab; user-select: none; }
 .canvaswrap svg.dragging { cursor: grabbing; }
@@ -321,13 +351,17 @@ g.e.faded, g.elabel.faded { opacity: .3; }
 .missing { max-width: 60ch; margin: 10vh auto; display: flex; flex-direction: column; gap: 10px; }
 
 @media (max-width: 1100px) {
-  .bench { grid-template-columns: 230px minmax(0, 1fr); height: auto; }
+  body { height: auto; min-height: 100%; }
+  .bench { grid-template-columns: 230px minmax(0, 1fr); flex: none; }
   .inspector { grid-column: 1 / -1; }
   .flow { min-height: 640px; }
+  .canvaswrap { min-height: 360px; }
 }
 @media (max-width: 720px) {
   .bench { grid-template-columns: minmax(0, 1fr); }
   .index { max-height: 260px; }
+  .index.filtering { max-height: none; }
+  .filters { position: static; width: auto; max-height: none; overflow-y: visible; overscroll-behavior: auto; box-shadow: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
   .flow { min-height: 600px; }
   .legend { display: none; }
 }
@@ -349,8 +383,15 @@ g.e.faded, g.elabel.faded { opacity: .3; }
   <div class="answer" id="answer" hidden></div>
 </section>
 <main class="bench" id="bench">
-  <nav class="pane index" aria-label="Flows">
-    <div class="search"><input type="search" id="q" placeholder="Search flows and rules" aria-label="Search flows and rules"></div>
+  <nav class="pane index" id="index" aria-label="Flows">
+    <div class="search">
+      <div class="searchrow">
+        <input type="search" id="q" placeholder="Search flows" aria-label="Search flows and rules">
+        <button type="button" class="fbtn" id="fbtn" aria-expanded="false" aria-controls="filters" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>Filters<span class="fcount" id="fcount" hidden></span></button>
+      </div>
+      <div class="factive" id="factive" hidden></div>
+    </div>
+    <div class="filters" id="filters" role="dialog" aria-label="Filters" tabindex="-1" hidden></div>
     <div class="flowlist" id="flowlist"></div>
   </nav>
   <section class="pane flow" aria-label="Flow">
@@ -395,7 +436,12 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
   const FANOUT_TEXT = { parallel: 'in parallel', batch: 'in batches', each: 'for each' };
   const JOIN_TEXT = { all: 'all of them', any: 'any one', first: 'the first' };
 
-  const state = { flow: null, node: null, path: 'all', showChanges: !!diff, composer: null, q: '', hl: new Set() };
+  /**
+   * What the viewer shows: the open flow and step, the chosen path, the search text, the
+   * highlighted steps, and the flow list's filters (chosen values per filter, the search text
+   * inside each filter, the filters showing all their values, and whether the panel is open).
+   */
+  const state = { flow: null, node: null, path: 'all', showChanges: !!diff, composer: null, q: '', hl: new Set(), picks: new Map(), facetQ: {}, facetAll: new Set(), filtersOpen: false };
   let aiAsk = null; // set when the page can ask Claude
   // Hand-offs between flows: queues, events, sagas, and screens calling the API. An HTTP flow is
   // started by `http:METHOD /path`; routes match with their parameters normalized.
@@ -818,20 +864,197 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
     }
   }
 
+  /** Tells whether a flow's title, summary, trigger, labels or rules contain the search text. */
   function matches(f) {
     if (!state.q) return true;
     const q = state.q.toLowerCase();
     return [f.title, f.summary, f.trigger?.signature, ...f.nodes.flatMap((n) => [n.label, n.rule])].some((s) => (s || '').toLowerCase().includes(q));
   }
+
+  /** The trigger kinds as a PM reads them in the Type filter. */
+  const KIND_NAMES = { http: 'HTTP', graphql: 'GraphQL', event: 'Event', job: 'Job', cron: 'Schedule', cli: 'CLI', webhook: 'Webhook', saga: 'Saga', page: 'Screen', ui: 'Screen action', other: 'Other' };
+  /** The finding kinds as shown in the Findings filter, in display order. */
+  const FINDING_NAMES = { gap: 'Gap', risk: 'Risk', surprise: 'Surprise', inconsistency: 'Inconsistency', todo: 'To-do' };
+  /** How many values a filter shows before it offers a search box and "Show all". */
+  const FILTER_CAP = 8;
+  /** The choices of a filter nothing is chosen in. */
+  const EMPTY = new Set();
+  /** Returns a flow's data steps. */
+  const dataSteps = (f) => f.nodes.filter((n) => n.type === 'data' && n.data);
+  /** Returns the HTTP method of a flow started by a route, or nothing for any other flow. */
+  const methodOf = (f) => (f.trigger?.kind === 'http' ? normalizeHttp(f.trigger.signature)?.slice(5).split(' ')[0] : undefined);
+  /**
+   * Every filter of the flow list. `values` lists what a flow has for the filter. `has`, when
+   * given, tells whether a flow matches one value given the other filters' choices (`picks`).
+   * `fixed` sets the display order of the values. A `flag` filter shows as soon as one flow has a
+   * value; any other filter needs two values. `inside` shows a filter within another one, and
+   * `when` hides a filter outside the view it belongs to.
+   */
+  const FACETS = [
+    { key: 'surface', group: 'Where it lives', title: 'Surface', values: (f) => [f.surface], label: surfaceName },
+    { key: 'area', group: 'Where it lives', title: 'Area', values: (f) => [f.domain || 'Other'] },
+    { key: 'type', group: 'How it starts', title: 'Type', values: (f) => [f.trigger?.kind], label: (v) => KIND_NAMES[v] },
+    { key: 'method', group: 'How it starts', title: 'Method', values: (f) => [methodOf(f)] },
+    { key: 'actor', group: 'How it starts', title: 'Started by', values: (f) => [f.actor] },
+    { key: 'handoff', group: 'How it starts', title: 'Hand-offs', flag: true, fixed: ['from', 'to'],
+      values: (f) => [emitters.has(channelOf(f)) && 'from', f.nodes.some((n) => (n.emits || []).length) && 'to'],
+      label: (v) => ({ from: 'Started by another flow', to: 'Hands off to another flow' }[v]) },
+    { key: 'entity', group: 'What it touches', title: 'Data', values: (f) => dataSteps(f).map((n) => n.data.entity),
+      has: (f, v, picks) => dataSteps(f).some((n) => n.data.entity === v && (!picks('op').size || picks('op').has(n.data.op))) },
+    { key: 'op', group: 'What it touches', title: 'Data operation', inside: 'entity', fixed: ['read', 'write', 'delete'], values: (f) => dataSteps(f).map((n) => n.data.op),
+      has: (f, v, picks) => dataSteps(f).some((n) => n.data.op === v && (!picks('entity').size || picks('entity').has(n.data.entity))),
+      label: (v) => ({ read: 'Reads', write: 'Writes', delete: 'Deletes' }[v]) },
+    { key: 'system', group: 'What it touches', title: 'Outside systems', values: (f) => f.nodes.filter((n) => n.type === 'external').map((n) => n.system) },
+    { key: 'finding', group: 'Needs attention', title: 'Findings', flag: true, fixed: Object.keys(FINDING_NAMES), values: (f) => (f.findings || []).map((x) => x.kind), label: (v) => FINDING_NAMES[v] },
+    { key: 'health', group: 'Needs attention', title: 'Health', flag: true, fixed: ['implicit', 'stale', 'low'],
+      values: (f) => [(f.nodes.some((n) => n.implicit) || f.edges.some((e) => e.implicit)) && 'implicit', (f.stale || f.nodes.some((n) => n.stale)) && 'stale', f.nodes.some((n) => n.confidence === 'low') && 'low'],
+      label: (v) => ({ implicit: 'Not handled in code', stale: 'Needs re-check', low: 'Low confidence' }[v]) },
+    { key: 'change', group: 'Needs attention', title: 'Changes', flag: true, fixed: ['added', 'changed', 'removed'], when: () => !!diff && state.showChanges,
+      values: (f) => [flowStatus(f.id)], label: (v) => ({ added: 'New', changed: 'Changed', removed: 'Removed' }[v]) },
+  ];
+  /** The filters that apply to this map and view, refreshed each time the flow list is drawn. */
+  let facetsInView = [];
+  /** Returns every flow of the map, removed ones included when comparing. */
+  const everyFlow = () => allFlowIds.map(flowOf);
+  /** Returns the values a flow has for a filter, without blanks or repeats. */
+  const valuesOf = (fc, f) => [...new Set(fc.values(f).filter(Boolean))];
+  /** Returns how a filter's value is written on its chip. */
+  const facetLabel = (fc, v) => String((fc.label && fc.label(v)) || v);
+  /** Returns the chosen values of a filter. */
+  const picksOf = (key) => state.picks.get(key) || EMPTY;
+  /** Lists a filter's values across every flow: in its fixed order, or by how many flows have them. */
+  function facetValues(fc) {
+    const counts = new Map();
+    for (const f of everyFlow()) for (const v of valuesOf(fc, f)) counts.set(v, (counts.get(v) || 0) + 1);
+    if (fc.fixed) return [...fc.fixed.filter((v) => counts.has(v)), ...[...counts.keys()].filter((v) => !fc.fixed.includes(v))];
+    return [...counts.keys()].sort((a, b) => counts.get(b) - counts.get(a) || facetLabel(fc, a).localeCompare(facetLabel(fc, b)));
+  }
+  /** Tells whether a filter applies to this map and view. */
+  function facetShown(fc) {
+    if (fc.when && !fc.when()) return false;
+    if (fc.inside) return facetShown(FACETS.find((x) => x.key === fc.inside)) && facetValues(fc).length > 0;
+    return facetValues(fc).length >= (fc.flag ? 1 : 2);
+  }
+  /** Tells whether a flow matches one value of a filter, given the choices returned by `picks`. */
+  const hasValue = (fc, f, v, picks) => (fc.has ? fc.has(f, v, picks) : valuesOf(fc, f).includes(v));
+  /**
+   * Tells whether a flow passes every filter in view. The filter `skip` is left out, and the
+   * other filters then read it as having no choice.
+   */
+  function passes(f, skip) {
+    /** Returns a filter's chosen values, reading the filter `skip` as having none. */
+    const picks =(key) => (key === skip ? EMPTY : picksOf(key));
+    return facetsInView.every((fc) => fc.key === skip || !picksOf(fc.key).size || [...picksOf(fc.key)].some((v) => hasValue(fc, f, v, picks)));
+  }
+  /** Lists the chosen values of the filters in view, as [filter, value] pairs. */
+  const chosen = () => facetsInView.flatMap((fc) => [...picksOf(fc.key)].map((v) => [fc, v]));
+  /** Returns the chips of one filter, each with the number of flows it would match. */
+  function chipsHtml(fc, list) {
+    const base = everyFlow().filter((f) => matches(f) && passes(f, fc.key));
+    /** Returns a filter's chosen values, reading this filter as having none. */
+    const picks =(key) => (key === fc.key ? EMPTY : picksOf(key));
+    return list.map((v) => {
+      const n = base.filter((f) => hasValue(fc, f, v, picks)).length, on = picksOf(fc.key).has(v), l = facetLabel(fc, v);
+      return `<button type="button" class="chip${n || on ? '' : ' zero'}" data-fk="${fc.key}" data-fv="${esc(v)}" aria-pressed="${on}" aria-label="${esc(`${l}, ${n} flow${n === 1 ? '' : 's'}`)}"><span class="t">${esc(l)}</span><span class="n">${n}</span></button>`;
+    }).join('');
+  }
+  /**
+   * Returns one filter's section of the panel. Past `FILTER_CAP` values it adds a search box and
+   * shows the most common values, plus the chosen ones, until "Show all" is pressed.
+   */
+  function facetHtml(fc) {
+    const all = facetValues(fc), q = (state.facetQ[fc.key] || '').toLowerCase(), picked = picksOf(fc.key);
+    const big = all.length > FILTER_CAP, expanded = state.facetAll.has(fc.key);
+    let list = q ? all.filter((v) => facetLabel(fc, v).toLowerCase().includes(q)) : all;
+    if (big && !q && !expanded) list = [...list.slice(0, FILTER_CAP), ...list.slice(FILTER_CAP).filter((v) => picked.has(v))];
+    const name = fc.title.toLowerCase();
+    const inner = facetsInView.filter((x) => x.inside === fc.key).map((x) => `<div class="fsub"><span class="fname" id="fn-${x.key}">${esc(x.title)}</span><div class="chips" role="group" aria-labelledby="fn-${x.key}">${chipsHtml(x, facetValues(x))}</div></div>`).join('');
+    return `<div class="facet"><span class="fname" id="fn-${fc.key}">${esc(fc.title)}</span>
+      ${big ? `<input type="search" data-fsearch="${fc.key}" value="${esc(state.facetQ[fc.key] || '')}" placeholder="Search ${esc(name)}" aria-label="Search ${esc(name)}">` : ''}
+      <div class="chips" role="group" aria-labelledby="fn-${fc.key}">${chipsHtml(fc, list) || `<span class="fhint">No ${esc(name)} matches.</span>`}</div>
+      ${big && !q ? `<button type="button" class="linkish" data-fall="${fc.key}">${expanded ? 'Show fewer' : `Show all ${all.length}`}</button>` : ''}${inner}</div>`;
+  }
+  /** Draws the filters panel, grouped as the filters are listed, when it is open. */
+  function drawFilters() {
+    const box = $('filters');
+    box.hidden = !state.filtersOpen;
+    $('index').classList.toggle('filtering', state.filtersOpen);
+    if (!state.filtersOpen) return;
+    const groups = new Map();
+    for (const fc of facetsInView) if (!fc.inside) (groups.get(fc.group) || groups.set(fc.group, []).get(fc.group)).push(fc);
+    box.innerHTML = `<div class="fhead"><h3>Filters</h3>${chosen().length ? '<button type="button" class="linkish" data-fclear>Clear all</button>' : ''}</div>`
+      + [...groups].map(([g, list]) => `<div class="fgroup"><span class="eyebrow">${esc(g)}</span>${list.map(facetHtml).join('')}</div>`).join('');
+  }
+  /** Draws the Filters button and the chosen values above the flow list, with how many flows are listed. */
+  function drawFilterBar(listed) {
+    const on = chosen();
+    $('fbtn').hidden = !facetsInView.length;
+    $('fbtn').setAttribute('aria-expanded', String(state.filtersOpen));
+    $('fcount').hidden = !on.length;
+    $('fcount').textContent = on.length;
+    $('factive').hidden = !on.length;
+    $('factive').innerHTML = on.map(([fc, v]) => {
+      const l = facetLabel(fc, v);
+      return `<button type="button" class="fpick" data-fk="${fc.key}" data-fv="${esc(v)}" title="${esc(`${fc.title}: ${l}`)}" aria-label="${esc(`Remove filter ${fc.title}: ${l}`)}"><span class="t">${esc(l)}</span><span aria-hidden="true">×</span></button>`;
+    }).join('') + `<button type="button" class="linkish" data-fclear>Clear all</button><span class="n">${listed} of ${allFlowIds.length} flows</span>`;
+  }
+  /** Describes the focused filter control, so the same control can take focus again after a redraw. */
+  function focusedControl() {
+    const el = document.activeElement;
+    if (!el || !$('index').contains(el)) return null;
+    return { fsearch: el.dataset.fsearch, fk: el.dataset.fk, fv: el.dataset.fv, fall: el.dataset.fall, bar: !!el.closest('#factive'), at: el.selectionStart, fbtn: el.id === 'fbtn' };
+  }
+  /** Gives focus back to the control `focusedControl` described, or to the Filters button when it is gone. */
+  function refocus(c) {
+    if (!c || c.fbtn) return;
+    const all = [...$('index').querySelectorAll('[data-fsearch], [data-fk], [data-fall]')];
+    const el = all.find((x) => (c.fsearch && x.dataset.fsearch === c.fsearch) || (c.fall && x.dataset.fall === c.fall) || (c.fk && x.dataset.fk === c.fk && x.dataset.fv === c.fv && !!x.closest('#factive') === c.bar));
+    if (!el) { (state.filtersOpen ? $('filters') : $('fbtn')).focus(); return; }
+    el.focus();
+    if (c.fsearch && c.at != null) el.setSelectionRange(c.at, c.at);
+  }
+  /** Opens or closes the filters panel, bringing the whole panel into view when it opens. */
+  function setFiltersOpen(open) {
+    state.filtersOpen = open;
+    drawIndex();
+    if (!open) { $('fbtn').focus(); return; }
+    $('filters').focus({ preventScroll: true });
+    $('filters').scrollIntoView({ block: 'nearest' });
+  }
+  $('index').addEventListener('click', (ev) => {
+    const t = ev.target.closest('#fbtn, [data-fclear], [data-fall], [data-fk]');
+    if (!t) return;
+    if (t.id === 'fbtn') { setFiltersOpen(!state.filtersOpen); return; }
+    if (t.dataset.fclear !== undefined) state.picks.clear();
+    else if (t.dataset.fall) { if (!state.facetAll.delete(t.dataset.fall)) state.facetAll.add(t.dataset.fall); }
+    else { const set = state.picks.get(t.dataset.fk) || state.picks.set(t.dataset.fk, new Set()).get(t.dataset.fk); if (!set.delete(t.dataset.fv)) set.add(t.dataset.fv); }
+    drawIndex();
+  });
+  $('index').addEventListener('input', (ev) => { const k = ev.target.dataset?.fsearch; if (!k) return; state.facetQ[k] = ev.target.value; drawIndex(); });
+  document.addEventListener('click', (ev) => {
+    if (!state.filtersOpen || ev.target.closest('#filters, #fbtn, #factive')) return;
+    state.filtersOpen = false; drawFilters(); $('fbtn').setAttribute('aria-expanded', 'false');
+  }, true);
+  document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape' && state.filtersOpen) { ev.preventDefault(); setFiltersOpen(false); } });
+
+  /**
+   * Draws the flow list: the flows that match the search and the filters, grouped by surface (when
+   * there are several) and area, then the Filters button, the chosen values and the open panel.
+   */
   function drawIndex() {
+    const focus = focusedControl();
+    facetsInView = FACETS.filter(facetShown);
+    for (const key of state.picks.keys()) if (!facetsInView.some((fc) => fc.key === key)) state.picks.delete(key);
     const groups = new Map();
     const bySurface = surfaces.length > 1;
+    let listed = 0;
     for (const id of allFlowIds) {
-      const f = flowOf(id); if (!matches(f)) continue;
+      const f = flowOf(id); if (!matches(f) || !passes(f)) continue;
+      listed++;
       const key = `${bySurface ? f.surface || '' : ''}\u0000${f.domain || 'Other'}`;
       (groups.get(key) || groups.set(key, []).get(key)).push(f);
     }
-    // Keep each surface's domains together, in the order surfaces first appear.
+    /** Returns where a group's surface first appears, so each surface's areas stay together. */
     const order = (k) => { const sf = k.split('\u0000')[0]; const i = surfaces.indexOf(sf); return i < 0 ? surfaces.length : i; };
     const html = [];
     let lastSurface = null;
@@ -845,8 +1068,12 @@ const PAYLOAD = {"head":{"version":1,"app":{"name":"Shop","summary":"Customers c
           <span>${st ? `<span class="pill ${st}">${st}</span>` : nf ? `<span class="pill find" title="${nf} finding(s)">${nf}</span>` : ''}</span><span class="s">${esc(f.trigger?.signature || '')}</span></button>`);
       }
     }
-    $('flowlist').innerHTML = html.join('') || '<p class="muted" style="padding:10px">No flow matches that search.</p>';
+    const filtered = chosen().length > 0;
+    $('flowlist').innerHTML = html.join('') || `<p class="muted" style="padding:10px">${filtered ? 'No flow matches these filters. <button type="button" class="linkish" data-fclear>Clear the filters</button>' : 'No flow matches that search.'}</p>`;
     $('flowlist').querySelectorAll('.flowbtn').forEach((b) => b.addEventListener('click', () => select(b.dataset.id)));
+    drawFilterBar(listed);
+    drawFilters();
+    refocus(focus);
   }
   $('q').addEventListener('input', (ev) => { state.q = ev.target.value.trim(); drawIndex(); });
 
