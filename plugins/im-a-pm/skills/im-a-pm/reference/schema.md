@@ -24,7 +24,7 @@
       "title": "Publish a video",              // verb + object, PM wording
       "surface": "api",                        // optional: the app it belongs to (web, mobile, admin, api…); monorepos
       "domain": "Catalog",                     // groups flows in the sidebar
-      "actor": "Content editor",               // who triggers it (user role, system, partner)
+      "actor": "Content editor",               // who triggers it (user role, system, partner); one name per actor across flows
       "trigger": {
         "kind": "http",                        // http | graphql | event | job | cron | cli | webhook | saga | page | ui | other
         "signature": "PATCH /videos/{id}/publish",
@@ -91,8 +91,8 @@
 | `start` | The trigger, phrased as what the actor does | `label` (exactly one per flow; give it the id `start`, so ids stay the same across rebuilds) |
 | `decision` | A business question with 2+ answers | `label` (a question), `rule`, outgoing edges with `label` |
 | `action` | Something the system does that matters to the business (calculate, count, notify, assign) | `label` |
-| `data` | Information saved or read | `label`, `data.op` (`read` / `write` / `delete`), `data.entity` |
-| `external` | Talks to something outside the app (payment provider, email, another service, a published event) | `label`, `system` |
+| `data` | Information saved or read | `label`, `data.op` (`read` / `write` / `delete`), `data.entity` (named the same in every flow) |
+| `external` | Talks to something outside the app (payment provider, email, another service, a published event) | `label`, `system` (one system, named the same in every flow) |
 | `outcome` | What the actor gets back | `label`, `result`, optional `response` |
 
 Every node except `start` should have `anchors` and `confidence`. Every node except outcomes
@@ -243,6 +243,9 @@ warns while any remain, and the viewer marks them "re-check".
 - A node other than `start` has no `anchors` or no `confidence`, or a node other than an outcome
   has no `calls`.
 - A data step has no `data.entity`, or an external step has no `system`.
+- An external step's `system` joins several systems with " / " ("PayPal / Stripe").
+- One actor, outside system or data entity is written two ways: the names are the same once case,
+  punctuation and text in parentheses are ignored ("System" and "System (server start)").
 - `trigger.kind`, or the `kind` of a finding, is not one of the values listed above. A finding
   names a node the flow does not have.
 - An outcome other than the happy path has no name in `outcomes`.

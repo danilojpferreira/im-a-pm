@@ -44,6 +44,16 @@ export function channelOf(flow) {
 const FANOUT_MODES = new Set(['parallel', 'batch', 'each']);
 const JOIN_MODES = new Set(['all', 'any', 'first']);
 const CALL_KINDS = new Set(['call', 'framework', 'validation', 'query', 'config', 'event']);
+/** Matches an outside system name that joins several systems, such as "PayPal / Stripe". */
+const SEVERAL_SYSTEMS_RE = /\s\/\s/;
+
+/**
+ * Reduces a name to what identifies it: lower case, without text in parentheses, punctuation or
+ * extra spaces. "System (server start)" and "system" give the same key.
+ */
+function nameKey(name) {
+  return String(name).toLowerCase().replace(/\([^)]*\)/g, ' ').replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
+}
 
 function readJson(file) {
   try {
@@ -109,6 +119,7 @@ export function validate(map) {
       if (n.type === 'data' && !['read', 'write', 'delete'].includes(n.data?.op)) errors.push(`${w}: data.op must be read | write | delete`);
       if (n.type === 'data' && !n.data?.entity) warnings.push(`${w}: data.entity should name what is saved or read`);
       if (n.type === 'external' && !n.system) warnings.push(`${w}: external steps should name the outside system in "system"`);
+      if (n.type === 'external' && SEVERAL_SYSTEMS_RE.test(n.system || '')) warnings.push(`${w}: "${n.system}" names several outside systems; split the step, or name the role they share (such as "Payment provider")`);
       if (n.type !== 'start') {
         if (!Array.isArray(n.anchors) || n.anchors.length === 0) warnings.push(`${w}: no code anchor`);
         if (!CONFIDENCE.has(n.confidence)) warnings.push(`${w}: confidence should be high | medium | low`);
@@ -159,6 +170,7 @@ export function validate(map) {
 
     if (starts.length === 1) {
       const state = new Map();
+      /** Walks the flow from `id` without loop edges, recording an error for every cycle it meets. */
       const visit = (id) => {
         state.set(id, 1);
         for (const e of out.get(id) || []) {
@@ -171,6 +183,7 @@ export function validate(map) {
       };
       visit(starts[0].id);
       for (const id of nodes.keys()) if (!state.has(id)) errors.push(`${where}: "${id}" is not reachable from start`);
+      /** Tells whether step `to` can be reached from step `from` without loop edges. */
       const reaches = (from, to) => { const seen = new Set([from]); const st = [from]; while (st.length) { const x = st.pop(); if (x === to) return true; for (const e of out.get(x) || []) if (!e.loop && !seen.has(e.to)) { seen.add(e.to); st.push(e.to); } } return false; };
       for (const e of flow.edges) if (e.loop && nodes.has(e.from) && nodes.has(e.to) && !reaches(e.to, e.from)) errors.push(`${where}: loop edge "${e.from}" → "${e.to}" must point back to an earlier step`);
     }
@@ -184,6 +197,22 @@ export function validate(map) {
   const consumers = new Set((map.flows || []).map(channelOf).filter(Boolean));
   for (const f of map.flows || []) for (const n of f.nodes || []) for (const e of n.emits || []) {
     if (e.channel && !consumers.has(normalizeChannel(e.channel))) warnings.push(`flow "${f.id}" node "${n.id}": emits ${e.channel} but no flow starts from it${e.channel.startsWith('http:') ? ' (if this API is not in the repository, make the step an external call instead)' : ''}`);
+  }
+  const spellings = { actor: new Map(), 'outside system': new Map(), 'data entity': new Map() };
+  /** Records one spelling of an actor, outside system or data entity name under its key. */
+  const note = (what, name) => {
+    const key = nameKey(name);
+    if (key) (spellings[what].get(key) || spellings[what].set(key, new Set()).get(key)).add(name);
+  };
+  for (const f of map.flows || []) {
+    if (f.actor) note('actor', f.actor);
+    for (const n of f.nodes || []) {
+      if (n.type === 'external' && n.system) note('outside system', n.system);
+      if (n.type === 'data' && n.data?.entity) note('data entity', n.data.entity);
+    }
+  }
+  for (const [what, byKey] of Object.entries(spellings)) for (const names of byKey.values()) {
+    if (names.size > 1) warnings.push(`${what} is written ${[...names].map((s) => `"${s}"`).join(' and ')}: use one name in every flow`);
   }
   return { errors, warnings };
 }

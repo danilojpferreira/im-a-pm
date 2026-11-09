@@ -289,6 +289,31 @@ test('details the schema asks for are warnings, never errors', () => {
   for (const needle of ['trigger.kind should be one of', 'data.entity should name', 'name the outside system', 'findings[0].kind should be one of', 'unknown node "nowhere"']) assert.ok(all.includes(needle), needle);
 });
 
+test('names: one outside system per step, and one spelling per actor, system and entity', () => {
+  const m = miniMap();
+  const [checkout, invoice] = m.flows;
+  checkout.actor = 'Admin / Support';
+  invoice.actor = 'Scheduler';
+  invoice.nodes.push({ id: 'pay', type: 'external', label: 'Charge', system: 'Пэйпал', anchors: [{ file: 'src/jobs.js', line: 2 }], confidence: 'high', calls: [] });
+  checkout.nodes.push({ id: 'save', type: 'data', label: 'Save', data: { op: 'write', entity: '注文' }, anchors: [{ file: 'src/app.js', line: 6 }], confidence: 'high', calls: [] });
+  checkout.edges.push({ from: 'in-stock', to: 'save', label: 'Maybe' }, { from: 'save', to: 'done' });
+  invoice.edges.push({ from: 'email', to: 'pay' }, { from: 'pay', to: 'sent' });
+  assert.deepEqual(validate(m).errors, []);
+  assert.deepEqual(validate(m).warnings, []);
+
+  invoice.nodes[1].system = 'PayPal / Stripe';
+  invoice.actor = 'admin / support (nightly)';
+  invoice.nodes.find((n) => n.id === 'pay').system = 'email';
+  const all = validate(m).warnings.join('\n');
+  assert.match(all, /node "email": "PayPal \/ Stripe" names several outside systems/);
+  assert.match(all, /actor is written "Admin \/ Support" and "admin \/ support \(nightly\)"/);
+  assert.ok(!all.includes('"Admin / Support" names several'), all);
+  assert.ok(!/outside system is written/.test(all), all);
+
+  invoice.nodes[1].system = 'Email';
+  assert.match(validate(m).warnings.join('\n'), /outside system is written "Email" and "email": use one name in every flow/);
+});
+
 test('the start node is found by its type, whatever its id', () => {
   const m = miniMap();
   const f = m.flows[0];

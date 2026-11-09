@@ -111,6 +111,11 @@ Goal: a correct, complete, PM-readable `.im-a-pm/flows.json` for HEAD.
 5. **Write for a PM.** Phrase decisions as yes/no questions in domain words ("Is the video still a
    draft?"). Phrase actions as verbs ("Count one view"). Put the exact rule in `rule`, in plain
    language with real values. Never use class or method names in `label` or `rule`.
+
+   Give each actor, outside system and data entity one name, and use it in every flow. Before
+   writing a new one, look for a name already in the map that means the same thing ("Visitor"
+   and "Anyone (no sign-in)" are one actor). An external step talks to one system: when the code
+   picks between several, name the role they share ("Payment provider") or split the step.
 6. **Record the function order of every step** in `calls`. List each function that runs between
    entering the node and leaving it, in execution order, with `depth` for nesting (the entry
    controller or handler is depth 0). Give each one `file`, `line` and `endLine`: the whole
@@ -172,7 +177,8 @@ Goal: bring the map from `app.commit` up to HEAD by re-checking only what change
    clone), fetch more history or rebuild. If it reports uncommitted changes, tell the person they
    are not part of this sync.
 2. **Re-check every stale step** against the new code. Update `label`, `rule`, `calls`,
-   `anchors`, edges and outcomes as needed, keeping ids when the business meaning is the same.
+   `anchors`, edges and outcomes as needed, keeping ids when the business meaning is the same,
+   and reusing the actor, system and entity names already in the map.
    Then delete `stale`. If the change split or merged decisions, restructure the flow, and give new
    ids only to new concepts. Check the flow's other steps when the change could reroute it (a new
    early return, a new exception).
