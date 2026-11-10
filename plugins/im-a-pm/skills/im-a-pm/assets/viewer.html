@@ -991,15 +991,18 @@ const PAYLOAD = /*__IM_A_PM_DATA__*/null;
       return `<button type="button" class="fpick" data-fk="${fc.key}" data-fv="${esc(v)}" title="${esc(`${fc.title}: ${l}`)}" aria-label="${esc(`Remove filter ${fc.title}: ${l}`)}"><span class="t">${esc(l)}</span><span aria-hidden="true">×</span></button>`;
     }).join('') + `<button type="button" class="linkish" data-fclear>Clear all</button><span class="n">${listed} of ${allFlowIds.length} flows</span>`;
   }
-  /** Describes the focused filter control, so the same control can take focus again after a redraw. */
+  /**
+   * Describes the focused filter control, so the same control can take focus again after a redraw.
+   * Returns nothing when the focus is on anything the redraw keeps, such as the search box.
+   */
   function focusedControl() {
     const el = document.activeElement;
-    if (!el || !$('index').contains(el)) return null;
-    return { fsearch: el.dataset.fsearch, fk: el.dataset.fk, fv: el.dataset.fv, fall: el.dataset.fall, bar: !!el.closest('#factive'), at: el.selectionStart, fbtn: el.id === 'fbtn' };
+    if (!el?.matches?.('[data-fsearch], [data-fk], [data-fall]') || !$('index').contains(el)) return null;
+    return { fsearch: el.dataset.fsearch, fk: el.dataset.fk, fv: el.dataset.fv, fall: el.dataset.fall, bar: !!el.closest('#factive'), at: el.selectionStart };
   }
   /** Gives focus back to the control `focusedControl` described, or to the Filters button when it is gone. */
   function refocus(c) {
-    if (!c || c.fbtn) return;
+    if (!c) return;
     const all = [...$('index').querySelectorAll('[data-fsearch], [data-fk], [data-fall]')];
     const el = all.find((x) => (c.fsearch && x.dataset.fsearch === c.fsearch) || (c.fall && x.dataset.fall === c.fall) || (c.fk && x.dataset.fk === c.fk && x.dataset.fv === c.fv && !!x.closest('#factive') === c.bar));
     if (!el) { (state.filtersOpen ? $('filters') : $('fbtn')).focus(); return; }
